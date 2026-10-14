@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="it" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Piattaforma di Intelligenza Artificiale e Valutazione Psicometrica per le Scuole di Psicoterapia Cognitiva (SPC/APC).">
+    <title>{% block title %}Scuole di Psicoterapia Cognitiva — AIP{% endblock %}</title>
+
+    <!-- Tailwind CSS (CDN) con fallback a stili nativi -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        night: '#0F172A',
+                        tealPrimary: '#0F766E',
+                        tealDark: '#115E59',
+                        spcOrange: '#EA580C',
+                        spcRed: '#DC2626',
+                        softGray: '#F8FAFC',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- HTMX per interazioni asincrone reattive senza framework JS pesanti -->
+    <script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta8hUczIjBk0k4L" crossorigin="anonymous"></script>
+
+    <!-- CSS personalizzato -->
+    <link rel="stylesheet" href="/static/css/custom.css">
+</head>
+<body class="min-h-full flex flex-col bg-[#F8FAFC] text-[#0F172A] font-sans antialiased selection:bg-teal-100 selection:text-teal-900">
+    
+    <!-- Contenuto principale -->
+    <div class="flex-1 flex flex-col justify-between">
+        {% block content %}{% endblock %}
+    </div>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: spc-aip-platform
+    env: python
+    region: frankfurt
+    plan: starter
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: APP_NAME
+        value: "Scuole di Psicoterapia Cognitiva — AIP"
+      - key: DATABASE_URL
+        sync: false
+      - key: APP_SECRET_KEY
+        generateValue: true
+      - key: APP_ENCRYPTION_KEY
+        sync: false

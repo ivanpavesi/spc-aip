@@ -1,0 +1,833 @@
+{% extends "base.html" %}
+
+{% block title %}Pannello Amministrazione — Scuole di Psicoterapia Cognitiva (AIP){% endblock %}
+
+{% block content %}
+<div class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- Header Istituzionale Amministrazione -->
+    <header class="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-6 border-b border-slate-200 gap-4">
+        <div>
+            <div class="flex items-center gap-3">
+                <h1 class="text-2xl sm:text-3xl font-extrabold text-[#0F172A]">Amministrazione di Sistema</h1>
+                <span class="px-3 py-1 rounded-full text-xs font-bold bg-red-50 text-red-800 border border-red-200">
+                    Ruolo Amministratore
+                </span>
+            </div>
+            <p class="text-xs text-slate-500 mt-1">
+                Governance applicativa, gestione utenze, catalogo psicometrico, AI e sicurezza · {{ user.email }}
+            </p>
+        </div>
+
+        <form action="/auth/logout" method="POST">
+            <button type="submit" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-red-600 bg-white border border-slate-200 hover:border-red-200 transition-colors shadow-sm">
+                Disconnetti
+            </button>
+        </form>
+    </header>
+
+    <!-- Feedback Notifiche / Errori -->
+    {% if msg %}
+    <div class="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-800 font-semibold shadow-sm animate-fade-in">
+        <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <span>{{ msg }}</span>
+        </div>
+        <a href="/admin/dashboard?tab={{ active_tab }}" class="text-emerald-600 hover:text-emerald-900 text-xs">✕</a>
+    </div>
+    {% endif %}
+
+    {% if err %}
+    <div class="mb-6 p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between text-xs text-rose-800 font-semibold shadow-sm animate-fade-in">
+        <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+            </svg>
+            <span>{{ err }}</span>
+        </div>
+        <a href="/admin/dashboard?tab={{ active_tab }}" class="text-rose-600 hover:text-rose-900 text-xs">✕</a>
+    </div>
+    {% endif %}
+
+    <!-- Box Informativo GDPR -->
+    <div class="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 flex items-start sm:items-center gap-3">
+        <svg class="w-5 h-5 text-teal-700 shrink-0 mt-0.5 sm:mt-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span>
+            <strong>Separazione delle Competenze (GDPR Art. 25 & 32):</strong> Il ruolo Amministratore consente la gestione tecnica e operativa di utenze, strumenti di scoring, prompt AI e configurazioni di sistema, ma <em>non concede l'accesso in chiaro</em> alle trascrizioni cliniche dei pazienti e ai dati sanitari dei singoli terapeuti.
+        </span>
+    </div>
+
+    <!-- Barra di Navigazione a Schede (Tabs) -->
+    <nav class="flex overflow-x-auto gap-2 pb-2 mb-8 border-b border-slate-200 scrollbar-none" aria-label="Schede di amministrazione">
+        <a href="/admin/dashboard?tab=users"
+           class="px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2
+           {% if active_tab == 'users' %}bg-[#0F172A] text-white shadow-sm{% else %}bg-white text-slate-600 hover:text-[#0F172A] border border-slate-200 hover:border-slate-300{% endif %}">
+            👥 Utenze & Ruoli
+            <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if active_tab == 'users' %}bg-white/20 text-white{% else %}bg-slate-100 text-slate-600{% endif %}">
+                {{ users|length }}
+            </span>
+        </a>
+
+        <a href="/admin/dashboard?tab=tests"
+           class="px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2
+           {% if active_tab == 'tests' %}bg-[#0F172A] text-white shadow-sm{% else %}bg-white text-slate-600 hover:text-[#0F172A] border border-slate-200 hover:border-slate-300{% endif %}">
+            📋 Catalogo Questionari
+            <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if active_tab == 'tests' %}bg-white/20 text-white{% else %}bg-slate-100 text-slate-600{% endif %}">
+                {{ tests|length }}
+            </span>
+        </a>
+
+        <a href="/admin/dashboard?tab=buttons"
+           class="px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2
+           {% if active_tab == 'buttons' %}bg-[#0F172A] text-white shadow-sm{% else %}bg-white text-slate-600 hover:text-[#0F172A] border border-slate-200 hover:border-slate-300{% endif %}">
+            ✨ Pulsanti Analisi Clinica
+            <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if active_tab == 'buttons' %}bg-white/20 text-white{% else %}bg-slate-100 text-slate-600{% endif %}">
+                {{ buttons|length }}
+            </span>
+        </a>
+
+        <a href="/admin/dashboard?tab=ai"
+           class="px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2
+           {% if active_tab == 'ai' %}bg-[#0F172A] text-white shadow-sm{% else %}bg-white text-slate-600 hover:text-[#0F172A] border border-slate-200 hover:border-slate-300{% endif %}">
+            🧠 Configurazione AI & Modelli
+            <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if active_tab == 'ai' %}bg-white/20 text-white{% else %}bg-slate-100 text-slate-600{% endif %}">
+                {{ settings.get('AI_PROVIDER', 'OFFLINE') }}
+            </span>
+        </a>
+
+        <a href="/admin/dashboard?tab=docs"
+           class="px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2
+           {% if active_tab == 'docs' %}bg-[#0F172A] text-white shadow-sm{% else %}bg-white text-slate-600 hover:text-[#0F172A] border border-slate-200 hover:border-slate-300{% endif %}">
+            📚 Manuali & Documenti RAG
+            <span class="px-1.5 py-0.2 rounded-full text-[10px] {% if active_tab == 'docs' %}bg-white/20 text-white{% else %}bg-slate-100 text-slate-600{% endif %}">
+                {{ documents|length }}
+            </span>
+        </a>
+
+        <a href="/admin/dashboard?tab=audits"
+           class="px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-2
+           {% if active_tab == 'audits' %}bg-[#0F172A] text-white shadow-sm{% else %}bg-white text-slate-600 hover:text-[#0F172A] border border-slate-200 hover:border-slate-300{% endif %}">
+            🔒 Audit Trail
+        </a>
+    </nav>
+
+
+    <!-- ===================================================================== -->
+    <!-- TAB 1: GESTIONE UTENZE E RUOLI                                        -->
+    <!-- ===================================================================== -->
+    {% if active_tab == 'users' %}
+    <div class="space-y-8">
+        <!-- Modulo Creazione Nuovo Utente (Collapsible) -->
+        <details class="bg-white rounded-2xl border border-slate-200 card-elevation overflow-hidden group">
+            <summary class="px-6 py-4 cursor-pointer font-bold text-sm text-[#0F172A] flex items-center justify-between hover:bg-slate-50 transition-colors">
+                <span class="flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-lg bg-teal-50 text-teal-800 flex items-center justify-center font-bold text-base leading-none">+</span>
+                    Crea Nuovo Utente (Terapeuta, Ricercatore o Amministratore)
+                </span>
+                <span class="text-xs text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+            </summary>
+            
+            <form action="/admin/users/new" method="POST" class="p-6 border-t border-slate-100 space-y-4 bg-slate-50/50">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Email Istituzionale</label>
+                        <input type="email" name="email" required placeholder="mario.rossi@spc.it" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Password Iniziale</label>
+                        <input type="password" name="password" minlength="3" required placeholder="Minimo 3 caratteri" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Ruolo Piattaforma</label>
+                        <select name="role" required class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 bg-white">
+                            <option value="THERAPIST" selected>Terapeuta Clinico (THERAPIST)</option>
+                            <option value="RESEARCHER">Ricercatore (RESEARCHER)</option>
+                            <option value="ADMIN">Amministratore di Sistema (ADMIN)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Nome Completo (solo per Terapeuti)</label>
+                        <input type="text" name="full_name" placeholder="Dott. Mario Rossi" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Iscrizione Albo (solo per Terapeuti)</label>
+                        <input type="text" name="license_number" placeholder="Es. 12345/Lazio" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 bg-white">
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-2">
+                    <button type="submit" class="px-5 py-2.5 rounded-xl text-xs font-semibold text-white bg-[#0F172A] hover:bg-[#1E293B] shadow-sm">
+                        Registra Utente nel Sistema
+                    </button>
+                </div>
+            </form>
+        </details>
+
+        <!-- Tabella Utenze di Sistema -->
+        <article class="bg-white rounded-2xl border border-slate-200 card-elevation overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                <h2 class="text-sm font-bold text-[#0F172A]">Registro Utenti Piattaforma</h2>
+                <span class="text-xs text-slate-500">{{ users|length }} account registrati</span>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-slate-700">
+                    <thead class="bg-slate-50 border-b border-slate-200 text-xs uppercase font-semibold text-slate-500">
+                        <tr>
+                            <th class="px-6 py-3.5">Email</th>
+                            <th class="px-6 py-3.5">Ruolo</th>
+                            <th class="px-6 py-3.5">2FA (TOTP)</th>
+                            <th class="px-6 py-3.5">Stato</th>
+                            <th class="px-6 py-3.5 text-right">Azioni Amministrative</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-xs">
+                        {% for u in users %}
+                        <tr class="hover:bg-slate-50/50">
+                            <td class="px-6 py-4">
+                                <div class="font-semibold text-[#0F172A]">{{ u.email }}</div>
+                                <div class="text-[10px] text-slate-400 font-mono">ID: {{ u.id[:8] }}... · {{ u.created_at.strftime('%d/%m/%Y') }}</div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="px-2.5 py-1 rounded font-mono font-bold text-[11px]
+                                    {% if u.role.value == 'ADMIN' %}bg-red-50 text-red-700 border border-red-200
+                                    {% elif u.role.value == 'THERAPIST' %}bg-teal-50 text-teal-800 border border-teal-200
+                                    {% else %}bg-indigo-50 text-indigo-800 border border-indigo-200{% endif %}">
+                                    {{ u.role.value }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                {% if u.totp_enabled %}
+                                <div class="flex items-center gap-2">
+                                    <span class="text-emerald-700 font-semibold flex items-center gap-1">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                        Attivo
+                                    </span>
+                                    <form action="/admin/users/{{ u.id }}/reset-totp" method="POST" class="inline" onsubmit="return confirm('Disattivare la 2FA per questo utente?');">
+                                        <button type="submit" class="text-[10px] text-slate-400 hover:text-red-600 underline">Reset</button>
+                                    </form>
+                                </div>
+                                {% else %}
+                                <span class="text-slate-400">Non configurato</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4">
+                                {% if u.is_active %}
+                                <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700">Attivo</span>
+                                {% else %}
+                                <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-red-50 text-red-600">Disattivato</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 text-right">
+                                <div class="flex items-center justify-end gap-3">
+                                    <!-- Form Cambio Ruolo -->
+                                    <form action="/admin/users/{{ u.id }}/change-role" method="POST" class="inline-flex items-center gap-1">
+                                        <select name="new_role" onchange="this.form.submit()" class="text-[11px] py-1 px-2 rounded-lg border border-slate-200 bg-white" {% if u.id == user.id %}disabled{% endif %}>
+                                            <option value="THERAPIST" {% if u.role.value == 'THERAPIST' %}selected{% endif %}>Terapeuta</option>
+                                            <option value="RESEARCHER" {% if u.role.value == 'RESEARCHER' %}selected{% endif %}>Ricercatore</option>
+                                            <option value="ADMIN" {% if u.role.value == 'ADMIN' %}selected{% endif %}>Amministratore</option>
+                                        </select>
+                                    </form>
+
+                                    <!-- Attiva / Disattiva -->
+                                    {% if u.id != user.id %}
+                                    <form action="/admin/users/{{ u.id }}/toggle-active" method="POST" class="inline">
+                                        <button type="submit" class="text-[11px] font-semibold {% if u.is_active %}text-slate-500 hover:text-red-600{% else %}text-teal-700 hover:text-teal-900{% endif %}">
+                                            {% if u.is_active %}Disattiva{% else %}Riattiva{% endif %}
+                                        </button>
+                                    </form>
+                                    {% endif %}
+
+                                    <!-- Modale / Form Reset Password -->
+                                    <details class="relative inline-block text-left">
+                                        <summary class="cursor-pointer text-[11px] font-semibold text-slate-600 hover:text-[#0F172A] list-none">
+                                            Chiave ▾
+                                        </summary>
+                                        <div class="absolute right-0 mt-2 w-56 p-3 bg-white rounded-xl shadow-lg border border-slate-200 z-20">
+                                            <form action="/admin/users/{{ u.id }}/reset-password" method="POST" class="space-y-2">
+                                                <label class="block text-[10px] font-bold text-slate-700">Nuova Password</label>
+                                                <input type="password" name="new_password" required minlength="3" placeholder="Nuova password..." class="w-full px-2 py-1 text-xs rounded border border-slate-300">
+                                                <button type="submit" class="w-full py-1 rounded text-[10px] font-semibold text-white bg-[#0F172A]">
+                                                    Reimposta Password
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </details>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+    </div>
+    {% endif %}
+
+
+    <!-- ===================================================================== -->
+    <!-- TAB 2: CATALOGO QUESTIONARI E REGOLE DI SCORING                       -->
+    <!-- ===================================================================== -->
+    {% if active_tab == 'tests' %}
+    <div class="space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <h2 class="text-lg font-bold text-[#0F172A]">Catalogo Questionari Psicometrici</h2>
+                <p class="text-xs text-slate-500">Definizioni degli item, regole di scoring deterministico e cut-off normativi</p>
+            </div>
+            <a href="/admin/tests/new" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-white bg-[#0F172A] hover:bg-[#1E293B] shadow-sm">
+                <span>+</span> Nuovo Questionario
+            </a>
+        </div>
+
+        <article class="bg-white rounded-2xl border border-slate-200 card-elevation overflow-hidden">
+            <table class="w-full text-left text-sm text-slate-700">
+                <thead class="bg-slate-50 border-b border-slate-200 text-xs uppercase font-semibold text-slate-500">
+                    <tr>
+                        <th class="px-6 py-4">Sigla / Codice</th>
+                        <th class="px-6 py-4">Titolo Questionario</th>
+                        <th class="px-6 py-4">Versione</th>
+                        <th class="px-6 py-4">N. Item</th>
+                        <th class="px-6 py-4">Stato</th>
+                        <th class="px-6 py-4 text-right">Azioni</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-xs">
+                    {% for t in tests %}
+                    <tr class="hover:bg-slate-50/50">
+                        <td class="px-6 py-4">
+                            <span class="font-bold font-mono text-teal-800 text-xs bg-teal-50 px-2 py-1 rounded border border-teal-200">
+                                {{ t.code }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="font-medium text-[#0F172A]">{{ t.title }}</div>
+                            <div class="text-[11px] text-slate-500 line-clamp-1">{{ t.description or 'Nessuna descrizione' }}</div>
+                        </td>
+                        <td class="px-6 py-4 font-mono text-slate-500">{{ t.version }}</td>
+                        <td class="px-6 py-4 text-slate-600 font-semibold">{{ t.items_schema.get('items', [])|length }} item</td>
+                        <td class="px-6 py-4">
+                            {% if t.is_active %}
+                            <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700">Attivo</span>
+                            {% else %}
+                            <span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-500">Disattivato</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <div class="flex items-center justify-end gap-3">
+                                <a href="/admin/tests/{{ t.id }}" class="text-xs font-semibold text-teal-800 hover:text-teal-900 underline">
+                                    Modifica & Regole
+                                </a>
+                                <form action="/admin/tests/{{ t.id }}/toggle-active" method="POST" class="inline">
+                                    <button type="submit" class="text-xs text-slate-500 hover:text-slate-800 underline">
+                                        {% if t.is_active %}Disattiva{% else %}Attiva{% endif %}
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </article>
+    </div>
+    {% endif %}
+
+
+    <!-- ===================================================================== -->
+    <!-- TAB 3: PULSANTI ANALISI CLINICA PRECONFIGURATI (SPC/APC)              -->
+    <!-- ===================================================================== -->
+    {% if active_tab == 'buttons' %}
+    <div class="space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+                <h2 class="text-lg font-bold text-[#0F172A]">Pulsanti di Analisi Clinica SPC/APC</h2>
+                <p class="text-xs text-slate-500">
+                    Configura i pulsanti disponibili nella cartella del paziente per guidare le elaborazioni AI secondo il modello cognitivista.
+                </p>
+            </div>
+        </div>
+
+        <!-- Aggiunta Nuovo Pulsante -->
+        <details class="bg-white rounded-2xl border border-slate-200 card-elevation overflow-hidden group">
+            <summary class="px-6 py-4 cursor-pointer font-bold text-sm text-[#0F172A] flex items-center justify-between hover:bg-slate-50 transition-colors">
+                <span class="flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-lg bg-teal-50 text-teal-800 flex items-center justify-center font-bold text-base leading-none">+</span>
+                    Aggiungi Nuovo Pulsante di Analisi
+                </span>
+                <span class="text-xs text-slate-400 group-open:rotate-180 transition-transform">▼</span>
+            </summary>
+            
+            <form action="/admin/buttons/new" method="POST" class="p-6 border-t border-slate-100 space-y-4 bg-slate-50/50">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Nome Pulsante</label>
+                        <input type="text" name="name" required placeholder="Es. Schema Therapy Formulation" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Ordine di Visualizzazione</label>
+                        <input type="number" name="display_order" value="{{ (buttons|length) + 1 }}" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Versione Prompt</label>
+                        <input type="text" name="version" value="1.0-SPC" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 bg-white">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Descrizione Funzionale</label>
+                    <input type="text" name="description" placeholder="Breve sintesi per il terapeuta..." class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 bg-white">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Prompt di Sistema (Istruzioni Cliniche per l'AI)</label>
+                    <textarea name="system_prompt" rows="5" required placeholder="Inserisci il prompt dettagliato con le sezioni da analizzare..." class="w-full px-3.5 py-2 text-xs font-mono rounded-xl border border-slate-300 bg-white"></textarea>
+                </div>
+
+                <div class="flex justify-end pt-2">
+                    <button type="submit" class="px-5 py-2.5 rounded-xl text-xs font-semibold text-white bg-[#0F172A] hover:bg-[#1E293B]">
+                        Salva Nuovo Pulsante
+                    </button>
+                </div>
+            </form>
+        </details>
+
+        <!-- Elenco Pulsanti Esistenti -->
+        <div class="grid grid-cols-1 gap-4">
+            {% for b in buttons %}
+            <article class="bg-white rounded-2xl p-5 border border-slate-200 card-elevation space-y-3">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                    <div class="flex items-center gap-3">
+                        <span class="w-7 h-7 rounded-xl bg-teal-50 text-teal-800 flex items-center justify-center font-bold text-xs border border-teal-200">
+                            #{{ b.display_order }}
+                        </span>
+                        <div>
+                            <h3 class="text-sm font-bold text-[#0F172A] flex items-center gap-2">
+                                {{ b.name }}
+                                <span class="text-[10px] font-mono text-slate-400">v{{ b.version }}</span>
+                            </h3>
+                            <p class="text-xs text-slate-500">{{ b.description or 'Nessuna descrizione' }}</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <form action="/admin/buttons/{{ b.id }}/toggle" method="POST" class="inline">
+                            <button type="submit" class="px-3 py-1 rounded-lg text-xs font-semibold transition-colors {% if b.is_active %}bg-emerald-50 text-emerald-700 border border-emerald-200{% else %}bg-slate-100 text-slate-500{% endif %}">
+                                {% if b.is_active %}Abilitato{% else %}Disabilitato{% endif %}
+                            </button>
+                        </form>
+                        <form action="/admin/buttons/{{ b.id }}/delete" method="POST" class="inline" onsubmit="return confirm('Eliminare definitivamente questo pulsante di analisi?');">
+                            <button type="submit" class="px-2.5 py-1 rounded-lg text-xs text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors">
+                                Elimina
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Form Modifica Prompt In-line -->
+                <details class="text-xs">
+                    <summary class="cursor-pointer text-slate-500 hover:text-[#0F172A] font-semibold py-1">
+                        Visualizza e Modifica Prompt di Sistema ▾
+                    </summary>
+                    <form action="/admin/buttons/{{ b.id }}/edit" method="POST" class="pt-3 space-y-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-600 mb-1">Nome</label>
+                                <input type="text" name="name" value="{{ b.name }}" required class="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-600 mb-1">Ordine</label>
+                                <input type="number" name="display_order" value="{{ b.display_order }}" class="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-600 mb-1">Versione</label>
+                                <input type="text" name="version" value="{{ b.version }}" class="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-600 mb-1">Descrizione</label>
+                            <input type="text" name="description" value="{{ b.description or '' }}" class="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300">
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] font-semibold text-slate-600 mb-1">Prompt di Sistema SPC/APC</label>
+                            <textarea name="system_prompt" rows="5" class="w-full px-3 py-2 text-xs font-mono rounded-lg border border-slate-300 bg-slate-50">{{ b.system_prompt }}</textarea>
+                        </div>
+
+                        <div class="flex items-center justify-between pt-1">
+                            <label class="flex items-center gap-2 text-xs text-slate-600">
+                                <input type="checkbox" name="is_active" value="true" {% if b.is_active %}checked{% endif %} class="rounded text-teal-700">
+                                Pulsante attivo per i terapeuti
+                            </label>
+                            <button type="submit" class="px-4 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#0F172A] hover:bg-[#1E293B]">
+                                Salva Modifiche Prompt
+                            </button>
+                        </div>
+                    </form>
+                </details>
+            </article>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+
+    <!-- ===================================================================== -->
+    <!-- TAB 4: CONFIGURAZIONE AI & MULTI-LLM                                  -->
+    <!-- ===================================================================== -->
+    {% if active_tab == 'ai' %}
+    <div class="space-y-6">
+        <div>
+            <h2 class="text-lg font-bold text-[#0F172A]">Configurazione Intelligenza Artificiale Multi-LLM</h2>
+            <p class="text-xs text-slate-500">
+                Gestisci i provider supportati (Google Gemini, OpenAI, Anthropic Claude, Mistral / Endpoint Europei, Motore Offline) e i relativi parametri clinici.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Form Impostazioni Multi-LLM -->
+            <article class="lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-200 card-elevation">
+                <form action="/admin/settings/ai" method="POST" class="space-y-6">
+                    
+                    <!-- 1. Provider Attivo di Default -->
+                    <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                        <label class="block text-xs font-bold text-[#0F172A] mb-1">Provider Predefinito di Sistema</label>
+                        <select name="ai_provider" class="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 bg-white font-medium">
+                            <option value="HEURISTIC_OFFLINE" {% if settings.get('AI_PROVIDER') == 'HEURISTIC_OFFLINE' %}selected{% endif %}>
+                                🔒 Motore Clinico Euristico Locale (100% Offline, Regole CBT-SPC)
+                            </option>
+                            <option value="GEMINI" {% if settings.get('AI_PROVIDER') == 'GEMINI' %}selected{% endif %}>
+                                🌐 Google Gemini (Gemini 1.5 Pro, Flash, 2.0 Flash)
+                            </option>
+                            <option value="OPENAI" {% if settings.get('AI_PROVIDER') == 'OPENAI' %}selected{% endif %}>
+                                ⚡ OpenAI (GPT-4o, GPT-4o-mini, o3-mini, o1)
+                            </option>
+                            <option value="ANTHROPIC" {% if settings.get('AI_PROVIDER') == 'ANTHROPIC' %}selected{% endif %}>
+                                🧠 Anthropic Claude (Claude 3.5 Sonnet, Claude 3.5 Haiku)
+                            </option>
+                            <option value="CUSTOM" {% if settings.get('AI_PROVIDER') == 'CUSTOM' %}selected{% endif %}>
+                                🇪🇺 Mistral AI / Endpoint Europeo / Ollama Locale (OpenAI-compatibile)
+                            </option>
+                        </select>
+                        <p class="text-[11px] text-slate-500 mt-1.5">
+                            Questo provider viene utilizzato come fallback predefinito se il terapeuta non specifica un modello alternativo.
+                        </p>
+                    </div>
+
+                    <!-- 2. Google Gemini -->
+                    <div class="border border-slate-200 rounded-xl p-4 space-y-3">
+                        <h3 class="text-xs font-bold text-slate-800 flex items-center gap-2">
+                            <span>🌐</span> Google Gemini
+                            {% if settings.get('GEMINI_API_KEY') %}
+                            <span class="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-semibold">Configurato</span>
+                            {% endif %}
+                        </h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-600 mb-1">Gemini API Key</label>
+                                <input type="password" name="gemini_api_key" placeholder="AIzaSy... (lascia vuoto per invariato)" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-600 mb-1">Modello Gemini</label>
+                                <input type="text" name="gemini_model" value="{{ settings.get('GEMINI_MODEL', 'gemini-1.5-pro') }}" placeholder="gemini-1.5-pro" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 font-mono">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. OpenAI -->
+                    <div class="border border-slate-200 rounded-xl p-4 space-y-3">
+                        <h3 class="text-xs font-bold text-slate-800 flex items-center gap-2">
+                            <span>⚡</span> OpenAI (GPT-4o / o3-mini)
+                            {% if settings.get('OPENAI_API_KEY') %}
+                            <span class="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-semibold">Configurato</span>
+                            {% endif %}
+                        </h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-600 mb-1">OpenAI API Key</label>
+                                <input type="password" name="openai_api_key" placeholder="sk-proj-... (lascia vuoto per invariato)" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-600 mb-1">Modello OpenAI</label>
+                                <input type="text" name="openai_model" value="{{ settings.get('OPENAI_MODEL', 'gpt-4o') }}" placeholder="gpt-4o" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 font-mono">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. Anthropic Claude -->
+                    <div class="border border-slate-200 rounded-xl p-4 space-y-3">
+                        <h3 class="text-xs font-bold text-slate-800 flex items-center gap-2">
+                            <span>🧠</span> Anthropic Claude (Claude 3.5 Sonnet / Haiku)
+                            {% if settings.get('ANTHROPIC_API_KEY') %}
+                            <span class="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-semibold">Configurato</span>
+                            {% endif %}
+                        </h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-600 mb-1">Anthropic API Key</label>
+                                <input type="password" name="anthropic_api_key" placeholder="sk-ant-... (lascia vuoto per invariato)" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-600 mb-1">Modello Claude</label>
+                                <input type="text" name="anthropic_model" value="{{ settings.get('ANTHROPIC_MODEL', 'claude-3-5-sonnet-20241022') }}" placeholder="claude-3-5-sonnet-20241022" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 font-mono">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5. Mistral AI / Endpoint Europeo / Ollama -->
+                    <div class="border border-slate-200 rounded-xl p-4 space-y-3">
+                        <h3 class="text-xs font-bold text-slate-800 flex items-center gap-2">
+                            <span>🇪🇺</span> Mistral AI / Endpoint Europeo / Ollama Locale
+                            {% if settings.get('CUSTOM_AI_BASE_URL') %}
+                            <span class="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-semibold">Configurato</span>
+                            {% endif %}
+                        </h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-600 mb-1">Base URL Endpoint</label>
+                                <input type="text" name="custom_ai_base_url" value="{{ settings.get('CUSTOM_AI_BASE_URL', 'https://api.mistral.ai/v1') }}" placeholder="https://api.mistral.ai/v1" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-600 mb-1">API Key (se richiesta)</label>
+                                <input type="password" name="custom_ai_api_key" placeholder="API key..." class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 font-mono">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-600 mb-1">Nome Modello</label>
+                                <input type="text" name="custom_ai_model" value="{{ settings.get('CUSTOM_AI_MODEL', 'mistral-large-latest') }}" placeholder="mistral-large-latest" class="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 font-mono">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Parametri Comuni -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">Temperatura di Campionamento</label>
+                            <input type="number" step="0.05" min="0.0" max="1.0" name="ai_temperature" value="{{ settings.get('AI_TEMPERATURE', '0.2') }}" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300">
+                            <span class="text-[10px] text-slate-400">0.0 = Deterministico/Riproducibile, 0.7 = Creativo</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">Preambolo di Sistema Istituzionale (SPC/APC)</label>
+                        <textarea name="ai_system_preamble" rows="3" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 font-mono">{{ settings.get('AI_SYSTEM_PREAMBLE', '') }}</textarea>
+                    </div>
+
+                    <div class="flex items-center justify-between pt-3 border-t border-slate-100">
+                        <button type="submit" class="px-6 py-2.5 rounded-xl text-xs font-semibold text-white bg-[#0F172A] hover:bg-[#1E293B] shadow-sm">
+                            Salva Tutte le Configurazioni Multi-LLM
+                        </button>
+                    </div>
+                </form>
+            </article>
+
+            <!-- Card Verifica Connessione Live Multi-Provider -->
+            <article class="bg-white rounded-2xl p-6 border border-slate-200 card-elevation space-y-4">
+                <div>
+                    <h3 class="text-sm font-bold text-[#0F172A] mb-1">Diagnostica Connessioni LLM</h3>
+                    <p class="text-xs text-slate-500 mb-4">
+                        Testa singolarmente i provider per verificare raggiungibilità delle API e validità delle credenziali.
+                    </p>
+
+                    <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1 mb-4 font-mono">
+                        <div><strong>Provider Attivo:</strong> {{ settings.get('AI_PROVIDER', 'HEURISTIC_OFFLINE') }}</div>
+                        <div><strong>Temperatura:</strong> {{ settings.get('AI_TEMPERATURE', '0.2') }}</div>
+                    </div>
+                </div>
+
+                <div class="space-y-2.5">
+                    <!-- Test Heuristic -->
+                    <form action="/admin/settings/ai/test-connection" method="POST">
+                        <input type="hidden" name="target_provider" value="HEURISTIC_OFFLINE">
+                        <button type="submit" class="w-full py-2 px-3 rounded-xl text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-left flex items-center justify-between">
+                            <span>🔒 Test Motore Euristico Locale</span>
+                            <span class="text-[10px]">Test ➔</span>
+                        </button>
+                    </form>
+
+                    <!-- Test Gemini -->
+                    <form action="/admin/settings/ai/test-connection" method="POST">
+                        <input type="hidden" name="target_provider" value="GEMINI">
+                        <button type="submit" class="w-full py-2 px-3 rounded-xl text-xs font-semibold text-teal-900 bg-teal-50 hover:bg-teal-100 border border-teal-200 text-left flex items-center justify-between">
+                            <span>🌐 Test Google Gemini</span>
+                            <span class="text-[10px]">Test ➔</span>
+                        </button>
+                    </form>
+
+                    <!-- Test OpenAI -->
+                    <form action="/admin/settings/ai/test-connection" method="POST">
+                        <input type="hidden" name="target_provider" value="OPENAI">
+                        <button type="submit" class="w-full py-2 px-3 rounded-xl text-xs font-semibold text-indigo-900 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-left flex items-center justify-between">
+                            <span>⚡ Test OpenAI (GPT-4o)</span>
+                            <span class="text-[10px]">Test ➔</span>
+                        </button>
+                    </form>
+
+                    <!-- Test Anthropic -->
+                    <form action="/admin/settings/ai/test-connection" method="POST">
+                        <input type="hidden" name="target_provider" value="ANTHROPIC">
+                        <button type="submit" class="w-full py-2 px-3 rounded-xl text-xs font-semibold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-left flex items-center justify-between">
+                            <span>🧠 Test Anthropic Claude</span>
+                            <span class="text-[10px]">Test ➔</span>
+                        </button>
+                    </form>
+
+                    <!-- Test Custom / Mistral -->
+                    <form action="/admin/settings/ai/test-connection" method="POST">
+                        <input type="hidden" name="target_provider" value="CUSTOM">
+                        <button type="submit" class="w-full py-2 px-3 rounded-xl text-xs font-semibold text-sky-900 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-left flex items-center justify-between">
+                            <span>🇪🇺 Test Mistral AI / Ollama</span>
+                            <span class="text-[10px]">Test ➔</span>
+                        </button>
+                    </form>
+                </div>
+            </article>
+        </div>
+    </div>
+    {% endif %}
+
+
+    <!-- ===================================================================== -->
+    <!-- TAB 5: BIBLIOTECA DOCUMENTI SCIENTIFICI E MANUALI RAG                 -->
+    <!-- ===================================================================== -->
+    {% if active_tab == 'docs' %}
+    <div class="space-y-6">
+        <div>
+            <h2 class="text-lg font-bold text-[#0F172A]">Biblioteca Documenti Scientifici e RAG</h2>
+            <p class="text-xs text-slate-500">
+                Manuali clinici, articoli scientifici e linee guida SPC/APC utilizzati come fonti di riferimento dai modelli di intelligenza artificiale.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Elenco Documenti -->
+            <article class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 card-elevation overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-200">
+                    <h3 class="text-xs font-bold uppercase text-slate-500">Documenti Indicizzati per la Consultazione</h3>
+                </div>
+
+                {% if documents %}
+                <ul class="divide-y divide-slate-100">
+                    {% for d in documents %}
+                    <li class="p-5 flex items-start justify-between gap-4 hover:bg-slate-50/50">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono uppercase bg-slate-100 text-slate-700">
+                                    {{ d.file_type }}
+                                </span>
+                                <h4 class="text-sm font-bold text-[#0F172A]">{{ d.title }}</h4>
+                            </div>
+                            <p class="text-xs text-slate-500 mt-1">
+                                File: <span class="font-mono">{{ d.filename }}</span> · {{ d.extracted_text|length }} caratteri estratti
+                                {% if d.test_definition %}
+                                · Associato a: <span class="font-bold text-teal-800">{{ d.test_definition.code }}</span>
+                                {% else %}
+                                · Generale SPC/APC
+                                {% endif %}
+                            </p>
+                            <p class="text-xs text-slate-400 mt-2 line-clamp-2 font-mono bg-slate-50 p-2 rounded">
+                                {{ d.extracted_text[:250] }}...
+                            </p>
+                        </div>
+
+                        <form action="/admin/documents/{{ d.id }}/delete" method="POST" onsubmit="return confirm('Eliminare questo documento scientifico dalla memoria RAG?');">
+                            <button type="submit" class="text-xs text-slate-400 hover:text-rose-600 p-1">
+                                ✕ Rimuovi
+                            </button>
+                        </form>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="p-10 text-center text-slate-400 text-xs">
+                    Nessun documento scientifico ancora indicizzato.
+                </div>
+                {% endif %}
+            </article>
+
+            <!-- Form Caricamento Documento -->
+            <article class="bg-white rounded-2xl p-6 border border-slate-200 card-elevation">
+                <h3 class="text-sm font-bold text-[#0F172A] mb-3">Carica Nuovo Documento</h3>
+                <form action="/admin/documents/upload" method="POST" enctype="multipart/form-data" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Titolo Documento</label>
+                        <input type="text" name="title" required placeholder="Es. Linee Guida Formulazione Caso SPC" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Questionario Associato (Opzionale)</label>
+                        <select name="test_id" class="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300">
+                            <option value="">Documento Generale (Tutti i test / Clinica generale)</option>
+                            {% for t in tests %}
+                            <option value="{{ t.id }}">{{ t.code }} — {{ t.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">File (.pdf, .docx, .txt)</label>
+                        <input type="file" name="document_file" required accept=".pdf,.docx,.txt" class="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700">
+                    </div>
+
+                    <button type="submit" class="w-full py-2.5 rounded-xl text-xs font-semibold text-white bg-[#0F172A] hover:bg-[#1E293B]">
+                        Carica e Indicizza Documento
+                    </button>
+                </form>
+            </article>
+        </div>
+    </div>
+    {% endif %}
+
+
+    <!-- ===================================================================== -->
+    <!-- TAB 6: AUDIT TRAIL DI SICUREZZA                                      -->
+    <!-- ===================================================================== -->
+    {% if active_tab == 'audits' %}
+    <div>
+        <h2 class="text-lg font-bold text-[#0F172A] mb-4">Registro di Audit di Sicurezza (Eventi Recenti)</h2>
+        <article class="bg-white rounded-2xl border border-slate-200 card-elevation overflow-hidden">
+            {% if audits %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-700">
+                    <thead class="bg-slate-50 border-b border-slate-200 uppercase font-semibold text-slate-500">
+                        <tr>
+                            <th class="px-4 py-3">Data e Ora</th>
+                            <th class="px-4 py-3">Azione</th>
+                            <th class="px-4 py-3">Ruolo Attore</th>
+                            <th class="px-4 py-3">Tipo Risorsa</th>
+                            <th class="px-4 py-3">Dettagli Tecnici</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 font-mono">
+                        {% for a in audits %}
+                        <tr>
+                            <td class="px-4 py-2.5 text-slate-500">{{ a.created_at.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+                            <td class="px-4 py-2.5 font-bold text-slate-900">{{ a.action }}</td>
+                            <td class="px-4 py-2.5 text-slate-600">{{ a.actor_role or '-' }}</td>
+                            <td class="px-4 py-2.5 text-slate-500">{{ a.resource_type }}</td>
+                            <td class="px-4 py-2.5 text-slate-400 text-[11px] max-w-xs truncate">
+                                {{ a.technical_details or '-' }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-8 text-center text-slate-400 text-xs">
+                Nessun evento registrato.
+            </div>
+            {% endif %}
+        </article>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

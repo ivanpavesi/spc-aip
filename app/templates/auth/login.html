@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Accesso Operatori — Scuole di Psicoterapia Cognitiva (AIP){% endblock %}
+
+{% block content %}
+<main class="w-full max-w-md mx-auto px-4 py-12 flex flex-col items-center">
+
+    <div class="mb-6 text-center">
+        <a href="/" class="inline-block p-2 rounded-xl bg-white shadow-sm border border-slate-200/80 mb-3 hover:scale-105 transition-transform">
+            <img src="/static/images/logo-spc.png" alt="SPC Logo" class="h-12 w-auto object-contain">
+        </a>
+        <h1 class="text-2xl font-bold text-[#0F172A]">Accesso Operatori</h1>
+        <p class="text-sm text-slate-500 mt-1">Scuole di Psicoterapia Cognitiva (SPC/APC)</p>
+    </div>
+
+    <article class="w-full bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 card-elevation">
+        
+        {% if error_msg %}
+        <div class="mb-5 p-3.5 rounded-xl bg-red-50 border border-red-200 text-xs text-red-800 flex items-start gap-2.5" role="alert">
+            <svg class="w-4 h-4 text-red-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>{{ error_msg }}</span>
+        </div>
+        {% endif %}
+
+        <form action="/auth/login" method="POST" class="space-y-4">
+            <input type="hidden" name="role_hint" value="{{ role_hint }}">
+
+            <!-- Box credenziali di prova rapide (sviluppo) -->
+            <div class="p-3 bg-amber-50/80 rounded-xl border border-amber-200 text-xs text-amber-900 mb-2">
+                <div class="flex items-center justify-between mb-1.5 font-semibold text-[11px] uppercase tracking-wider text-amber-800">
+                    <span>⚡ Credenziali di Prova Rapide</span>
+                    <span class="text-[10px] font-normal text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">1-Click</span>
+                </div>
+                <div class="grid grid-cols-3 gap-1.5">
+                    <button 
+                        type="button" 
+                        onclick="fillCreds('admin', 'admin')" 
+                        class="px-2 py-1.5 bg-white hover:bg-amber-100/60 rounded-lg border border-amber-300 font-medium text-[11px] text-slate-800 text-center transition-colors shadow-2xs"
+                    >
+                        👑 Admin<br><span class="text-[9px] text-slate-500 font-mono">admin/admin</span>
+                    </button>
+                    <button 
+                        type="button" 
+                        onclick="fillCreds('terapeuta', 'terapeuta')" 
+                        class="px-2 py-1.5 bg-white hover:bg-amber-100/60 rounded-lg border border-amber-300 font-medium text-[11px] text-slate-800 text-center transition-colors shadow-2xs"
+                    >
+                        🩺 Terapeuta<br><span class="text-[9px] text-slate-500 font-mono">terapeuta/...</span>
+                    </button>
+                    <button 
+                        type="button" 
+                        onclick="fillCreds('ricercatore', 'ricercatore')" 
+                        class="px-2 py-1.5 bg-white hover:bg-amber-100/60 rounded-lg border border-amber-300 font-medium text-[11px] text-slate-800 text-center transition-colors shadow-2xs"
+                    >
+                        🔬 Ricercatore<br><span class="text-[9px] text-slate-500 font-mono">ricercatore/...</span>
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <label for="email" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                    Username o Email
+                </label>
+                <input 
+                    type="text" 
+                    id="email" 
+                    name="email" 
+                    required 
+                    autocapitalize="none"
+                    autocorrect="off"
+                    value="{{ entered_email or '' }}"
+                    placeholder="admin, terapeuta, ricercatore oppure email..."
+                    class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20"
+                >
+            </div>
+
+            <div>
+                <label for="password" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                    Password
+                </label>
+                <input 
+                    type="password" 
+                    id="password" 
+                    name="password" 
+                    required 
+                    placeholder="••••••••••••"
+                    class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20"
+                >
+            </div>
+
+            {% if require_totp %}
+            <div class="pt-2 border-t border-slate-100">
+                <label for="totp_code" class="block text-xs font-semibold uppercase tracking-wider text-teal-800 mb-1.5">
+                    Codice 2FA (TOTP Authenticator)
+                </label>
+                <input 
+                    type="text" 
+                    id="totp_code" 
+                    name="totp_code" 
+                    required 
+                    maxlength="6"
+                    placeholder="123456"
+                    class="w-full px-4 py-2.5 rounded-xl border border-teal-300 text-center tracking-widest text-lg font-mono focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20"
+                >
+                <p class="text-xs text-slate-400 mt-1">Inserisci il codice a 6 cifre dall'app di autenticazione.</p>
+            </div>
+            {% endif %}
+
+            <button 
+                type="submit" 
+                class="w-full mt-2 inline-flex items-center justify-center px-6 py-3 rounded-xl text-sm font-semibold text-white bg-[#0F172A] hover:bg-[#1E293B] btn-transition shadow-sm"
+            >
+                Accedi alla Piattaforma
+            </button>
+        </form>
+
+        <div class="mt-6 pt-4 border-t border-slate-100 text-center">
+            <a href="/" class="text-xs text-slate-500 hover:text-teal-700 hover:underline">
+                ← Torna alla Home
+            </a>
+        </div>
+
+        <script>
+            function fillCreds(u, p) {
+                const emailInput = document.getElementById('email');
+                const pwdInput = document.getElementById('password');
+                if (emailInput && pwdInput) {
+                    emailInput.value = u;
+                    pwdInput.value = p;
+                    pwdInput.focus();
+                }
+            }
+        </script>
+    </article>
+
+</main>
+{% endblock %}

@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Nuovo Paziente — Scuole di Psicoterapia Cognitiva (AIP){% endblock %}
+
+{% block content %}
+<main class="w-full max-w-2xl mx-auto px-4 py-8 sm:py-12">
+
+    <div class="mb-6 flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-[#0F172A]">Nuova Scheda Paziente</h1>
+            <p class="text-xs text-slate-500 mt-0.5">Creazione anagrafica protetta e cartella clinica pseudonimizzata</p>
+        </div>
+        <a href="/therapist/dashboard" class="text-xs text-slate-500 hover:text-slate-800 hover:underline">
+            ← Annulla
+        </a>
+    </div>
+
+    <article class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 card-elevation">
+        
+        <form action="/therapist/patients/new" method="POST" class="space-y-6">
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="first_name" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Nome *
+                    </label>
+                    <input 
+                        type="text" 
+                        id="first_name" 
+                        name="first_name" 
+                        required 
+                        placeholder="Es. Mario"
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20"
+                    >
+                </div>
+                <div>
+                    <label for="last_name" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Cognome *
+                    </label>
+                    <input 
+                        type="text" 
+                        id="last_name" 
+                        name="last_name" 
+                        required 
+                        placeholder="Es. Rossi"
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20"
+                    >
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="date_of_birth" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Data di Nascita
+                    </label>
+                    <input 
+                        type="date" 
+                        id="date_of_birth" 
+                        name="date_of_birth" 
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20"
+                    >
+                </div>
+                <div>
+                    <label for="tax_id" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Codice Fiscale
+                    </label>
+                    <input 
+                        type="text" 
+                        id="tax_id" 
+                        name="tax_id" 
+                        placeholder="RSSMRA80A01H501U"
+                        maxlength="16"
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm uppercase focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20"
+                    >
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="email" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Email Paziente
+                    </label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        name="email" 
+                        placeholder="paziente@esempio.it"
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20"
+                    >
+                </div>
+                <div>
+                    <label for="phone" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Telefono (per invito WhatsApp)
+                    </label>
+                    <input 
+                        type="tel" 
+                        id="phone" 
+                        name="phone" 
+                        placeholder="+39 333 1234567"
+                        class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20"
+                    >
+                </div>
+            </div>
+
+            <!-- Consensi GDPR -->
+            <div class="p-4 bg-slate-50 rounded-xl border border-slate-200/80 space-y-3">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">Consensi Informati (GDPR)</h3>
+                
+                <label class="flex items-start gap-3 cursor-pointer text-xs text-slate-700">
+                    <input type="checkbox" name="gdpr_clinical" value="true" checked required class="mt-0.5 rounded text-teal-700 focus:ring-teal-600">
+                    <span><strong>Consenso Clinico:</strong> Il paziente ha sottoscritto l'informativa e il consenso al trattamento per finalità di cura e diagnosi psicoterapeutica.</span>
+                </label>
+
+                <label class="flex items-start gap-3 cursor-pointer text-xs text-slate-700">
+                    <input type="checkbox" name="gdpr_research" value="true" class="mt-0.5 rounded text-teal-700 focus:ring-teal-600">
+                    <span><strong>Consenso Ricerca:</strong> Il paziente acconsente all'uso dei propri dati in forma esclusivamente pseudonimizzata per progetti di ricerca scientifica delle Scuole.</span>
+                </label>
+            </div>
+
+            <div class="pt-4 border-t border-slate-100 flex items-center justify-between">
+                <span class="text-xs text-slate-400">
+                    I dati anagrafici sono cifrati con Fernet prima del salvataggio.
+                </span>
+                <button 
+                    type="submit" 
+                    class="inline-flex items-center justify-center px-6 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#0F172A] hover:bg-[#1E293B] btn-transition shadow-sm"
+                >
+                    Salva Paziente
+                </button>
+            </div>
+
+        </form>
+
+    </article>
+
+</main>
+{% endblock %}

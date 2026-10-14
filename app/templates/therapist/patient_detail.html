@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+
+{% block title %}Cartella Paziente {{ patient.first_name }} {{ patient.last_name }} — AIP{% endblock %}
+
+{% block content %}
+<div class="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- Intestazione Cartella Paziente -->
+    <header class="flex flex-col sm:flex-row sm:items-center justify-between pb-6 mb-8 border-b border-slate-200 gap-4">
+        <div>
+            <div class="flex items-center gap-3">
+                <a href="/therapist/dashboard" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                    </svg>
+                </a>
+                <h1 class="text-2xl sm:text-3xl font-extrabold text-[#0F172A]">
+                    {{ patient.first_name }} {{ patient.last_name }}
+                </h1>
+                <span class="px-2.5 py-1 rounded-md bg-slate-100 text-xs font-mono font-bold text-slate-700">
+                    Codice Ricerca: {{ patient.pseudonym_code }}
+                </span>
+            </div>
+            <div class="flex items-center gap-4 text-xs text-slate-500 mt-2">
+                <span>Data di Nascita: {{ patient.date_of_birth or 'N/D' }}</span>
+                <span>·</span>
+                <span class="{% if patient.gdpr_research %}text-emerald-700 font-semibold{% else %}text-slate-400{% endif %}">
+                    Consenso Ricerca: {% if patient.gdpr_research %}Attivo{% else %}Non concesso{% endif %}
+                </span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <a href="/therapist/dashboard" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50">
+                Torna all'Elenco
+            </a>
+        </div>
+    </header>
+
+    <!-- Notifica Invito WhatsApp / Codice Generato -->
+    {% if invited_token %}
+    <div class="mb-8 p-5 bg-teal-50 border border-teal-200 rounded-2xl">
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h3 class="text-sm font-bold text-teal-900 mb-1">Questionario Assegnato con Successo!</h3>
+                <p class="text-xs text-teal-800 leading-relaxed mb-3">
+                    Il codice di compilazione generato è pronto per essere trasmesso al paziente in modo sicuro.
+                </p>
+                <div class="flex flex-wrap items-center gap-2">
+                    <input 
+                        type="text" 
+                        readonly 
+                        id="invite-url-field"
+                        value="{{ invite_url }}" 
+                        class="px-3 py-1.5 bg-white border border-teal-300 rounded-lg text-xs font-mono text-teal-950 w-72 select-all"
+                    >
+                    <button 
+                        type="button" 
+                        onclick="navigator.clipboard.writeText('{{ invite_url }}'); this.innerText='Copiato!';" 
+                        class="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-teal-800 hover:bg-teal-900 transition-colors"
+                    >
+                        Copia Link Invito
+                    </button>
+                    {% if whatsapp_url %}
+                    <a 
+                        href="{{ whatsapp_url }}" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        class="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors inline-flex items-center gap-1.5"
+                    >
+                        Invia invito via WhatsApp
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Sezione 1: Questionari Assegnati -->
+    <section class="mb-10">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold text-[#0F172A]">Questionari Psicometrici</h2>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Elenco Assegnazioni -->
+            <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 card-elevation overflow-hidden">
+                {% if assignments %}
+                <ul class="divide-y divide-slate-100">
+                    {% for a in assignments %}
+                    <li class="p-4 sm:p-5 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="font-bold text-sm text-[#0F172A]">{{ a.test_title }}</span>
+                                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider
+                                    {% if a.status == 'COMPLETED' %}bg-emerald-100 text-emerald-800
+                                    {% elif a.status == 'PENDING' %}bg-amber-100 text-amber-800
+                                    {% else %}bg-slate-100 text-slate-600{% endif %}">
+                                    {{ a.status }}
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-400">
+                                Assegnato il: {{ a.created_at.strftime('%d/%m/%Y %H:%M') }}
+                                {% if a.completed_at %}· Completato il: {{ a.completed_at.strftime('%d/%m/%Y %H:%M') }}{% endif %}
+                            </p>
+                        </div>
+
+                        <div>
+                            {% if a.status == 'COMPLETED' and a.has_score %}
+                            <a 
+                                href="/therapist/results/{{ a.id }}" 
+                                class="px-3 py-1.5 rounded-lg text-xs font-semibold text-teal-800 bg-teal-50 hover:bg-teal-100 transition-colors"
+                            >
+                                Risultati e Scoring →
+                            </a>
+                            {% else %}
+                            <span class="text-xs text-slate-400 italic">In attesa di compilazione</span>
+                            {% endif %}
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="p-8 text-center text-slate-400 text-xs">
+                    Nessun questionario attualmente assegnato a questo paziente.
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Form Assegna Nuovo Questionario -->
+            <div class="bg-white rounded-2xl p-5 border border-slate-200 card-elevation">
+                <h3 class="text-sm font-bold text-[#0F172A] mb-3">Assegna Nuovo Test</h3>
+                <form action="/therapist/patients/{{ patient.id }}/assign-test" method="POST" class="space-y-4">
+                    <div>
+                        <label for="test_id" class="block text-xs font-semibold text-slate-700 mb-1">Seleziona Strumento</label>
+                        <select id="test_id" name="test_id" required class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300">
+                            {% for t in tests_catalog %}
+                            <option value="{{ t.id }}">{{ t.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="days_valid" class="block text-xs font-semibold text-slate-700 mb-1">Validità Accesso (Giorni)</label>
+                        <input type="number" id="days_valid" name="days_valid" value="7" min="1" max="60" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300">
+                    </div>
+
+                    <button type="submit" class="w-full py-2.5 rounded-xl text-xs font-semibold text-white bg-[#0F172A] hover:bg-[#1E293B]">
+                        Assegna e Genera Invito
+                    </button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <!-- Sezione 2: Sedute e Trascrizioni -->
+    <section class="mb-10">
+        <h2 class="text-lg font-bold text-[#0F172A] mb-4">Sedute e Trascrizioni Cliniche</h2>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Storico Sedute -->
+            <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200 card-elevation overflow-hidden">
+                {% if sessions %}
+                <ul class="divide-y divide-slate-100">
+                    {% for s in sessions %}
+                    <li class="p-4 sm:p-5">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-bold text-sm text-[#0F172A]">Seduta n. {{ s.session_number }}</span>
+                            <span class="text-xs text-slate-400">{{ s.session_date.strftime('%d/%m/%Y') }}</span>
+                        </div>
+                        {% if s.transcript_preview %}
+                        <p class="text-xs text-slate-600 font-mono bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                            {{ s.transcript_preview }}
+                        </p>
+                        {% else %}
+                        <span class="text-xs text-slate-400 italic">Nessun testo trascritto</span>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="p-8 text-center text-slate-400 text-xs">
+                    Nessuna seduta ancora registrata.
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Form Caricamento Seduta -->
+            <div class="bg-white rounded-2xl p-5 border border-slate-200 card-elevation">
+                <h3 class="text-sm font-bold text-[#0F172A] mb-3">Aggiungi Seduta</h3>
+                <form action="/therapist/patients/{{ patient.id }}/sessions/new" method="POST" enctype="multipart/form-data" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">N. Seduta</label>
+                            <input type="number" name="session_number" value="{{ (sessions|length) + 1 }}" min="1" required class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Data</label>
+                            <input type="date" name="session_date" required class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Trascrizione (Testo o Incolla)</label>
+                        <textarea name="transcript_text" rows="3" placeholder="Incolla qui note o passaggi della seduta..." class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Oppure Carica File (.txt, .docx, .pdf)</label>
+                        <input type="file" name="transcript_file" accept=".txt,.pdf,.docx" class="text-xs text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700">
+                    </div>
+
+                    <button type="submit" class="w-full py-2.5 rounded-xl text-xs font-semibold text-white bg-[#0F172A] hover:bg-[#1E293B]">
+                        Salva Seduta Cifrata
+                    </button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <!-- Sezione 3: Analisi Cliniche Dinamiche e Formulazione del Caso (AI) -->
+    <section>
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-lg font-bold text-[#0F172A]">Analisi Clinica e Formulazione del Caso (AI)</h2>
+                <p class="text-xs text-slate-500">Elaborazioni cognitive assistite basate sulle sedute e i punteggi psicometrici</p>
+            </div>
+        </div>
+
+        <!-- Pulsanti Dinamici di Analisi e Selezione Modello -->
+        <div class="bg-white rounded-2xl p-6 border border-slate-200 card-elevation mb-6">
+            
+            <!-- Selettore Modello LLM -->
+            <div class="mb-5 pb-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                    <label for="shared-llm-select" class="block text-xs font-bold text-[#0F172A]">Modello LLM per l'Elaborazione Clinica</label>
+                    <p class="text-[11px] text-slate-500">Scegli il modello AI da utilizzare per l'analisi del caso clinico</p>
+                </div>
+                <div class="sm:w-80">
+                    <select id="shared-llm-select" class="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-300 bg-slate-50 font-medium text-slate-800 focus:bg-white" onchange="syncSelectedModel(this.value)">
+                        {% for m in available_models %}
+                        <option value="{{ m.id }}">{{ m.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Analisi Preconfigurate SPC/APC</h3>
+            <div class="flex flex-wrap gap-2.5 mb-6">
+                {% if clinical_buttons %}
+                    {% for b in clinical_buttons %}
+                    <form action="/therapist/patients/{{ patient.id }}/analyze" method="POST" class="inline analysis-form">
+                        <input type="hidden" name="analysis_type" value="{{ b.name }}">
+                        <input type="hidden" name="llm_model" class="llm-model-hidden" value="">
+                        <button type="submit" title="{{ b.description or '' }}" class="px-3.5 py-2 rounded-xl text-xs font-semibold text-teal-900 bg-teal-50 hover:bg-teal-100 border border-teal-200 transition-colors">
+                            ✨ {{ b.name }}
+                        </button>
+                    </form>
+                    {% endfor %}
+                {% else %}
+                    <span class="text-xs text-slate-400 italic">Nessun pulsante preconfigurato attivo. Configurali nel pannello di amministrazione.</span>
+                {% endif %}
+            </div>
+
+            <!-- Analisi Personalizzata -->
+            <form action="/therapist/patients/{{ patient.id }}/analyze" method="POST" class="space-y-3 pt-4 border-t border-slate-100 analysis-form">
+                <input type="hidden" name="analysis_type" value="Analisi Personalizzata">
+                <input type="hidden" name="llm_model" class="llm-model-hidden" value="">
+                <label class="block text-xs font-semibold text-slate-700">Richiesta Clinica Personalizzata (Prompt Libero):</label>
+                <div class="flex gap-2">
+                    <input type="text" name="custom_instructions" placeholder="Es. Approfondisci la relazione tra i punteggi di ansia e l'episodio di evitamento della seduta 2..." class="flex-1 px-4 py-2 text-xs rounded-xl border border-slate-300">
+                    <button type="submit" class="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-[#0F172A] hover:bg-[#1E293B]">
+                        Elabora
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <script>
+        function syncSelectedModel(val) {
+            document.querySelectorAll('.llm-model-hidden').forEach(function(el) {
+                el.value = val;
+            });
+        }
+        </script>
+
+        <!-- Storico Analisi Cliniche Generate -->
+        {% if analyses %}
+        <div class="space-y-4">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Elaborazioni e Formulazioni Salvate</h3>
+            {% for an in analyses %}
+            <article class="bg-white rounded-2xl p-6 border border-slate-200 card-elevation">
+                <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-sm text-teal-800">{{ an.analysis_type }}</span>
+                        <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-600">{{ an.model_name }}</span>
+                    </div>
+                    <span class="text-xs text-slate-400">{{ an.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
+                </div>
+                <div class="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap font-sans">
+                    {{ an.result_text }}
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </section>
+
+</div>
+{% endblock %}
