@@ -49,6 +49,7 @@ def verify_patient_code(
 
 
 @router.get("/health", summary="Stato del Sistema")
+@router.get("/healthz", summary="Stato del Sistema (Cloud Check)")
 def healthcheck(db: Session = Depends(get_db)) -> dict:
     """Verifica lo stato di salute dell'applicazione e la connettività al database."""
     db_status = "ok"
