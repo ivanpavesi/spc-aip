@@ -6,13 +6,14 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
+from cryptography.fernet import Fernet
 
 # Configura le variabili d'ambiente di test PRIMA di importare l'applicazione
 os.environ["ENVIRONMENT"] = "testing"
 os.environ["DEBUG"] = "true"
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["APP_SECRET_KEY"] = "test-secret-key-32-chars-minimum-spc-platform"
-os.environ["APP_ENCRYPTION_KEY"] = "EnJr5iK_Y0dfCXOmqEspSzmTk8QL1eRIkg3XIkm7ync="
+os.environ["APP_ENCRYPTION_KEY"] = Fernet.generate_key().decode()
 
 import sys
 from pathlib import Path

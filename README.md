@@ -79,7 +79,7 @@ aip/
 
 ## 3. Account Dimostrativi Preconfigurati (Sviluppo Locale)
 
-All'avvio, il database crea automaticamente i seguenti account dimostrativi semplificati pronti all'uso per i test:
+Soltanto con `ENVIRONMENT=development` o `testing`, all'avvio il database crea i seguenti account dimostrativi **se mancanti**. Password, ruoli, stato e profili esistenti non vengono ripristinati. In produzione il bootstrap mantiene catalogo e configurazioni applicative, senza creare o modificare gli account demo:
 
 | Ruolo | Username / Email | Password | Accesso Diretto |
 |---|---|---|---|
@@ -88,6 +88,18 @@ All'avvio, il database crea automaticamente i seguenti account dimostrativi semp
 | **Ricercatore** | `ricercatore` *(o `ricercatore@spc.it`)* | `ricercatore` | [Accedi come Ricercatore](http://127.0.0.1:8000/auth/login?role=RESEARCHER) |
 
 > 💡 **Nota di usabilità:** Nella schermata di login è presente un box **"Credenziali di Prova Rapide (1-Click)"** che permette di compilare automaticamente i campi con un solo tocco! Inoltre puoi inserire direttamente `admin`, `terapeuta` o `ricercatore` nel campo username senza digitare `@spc.it`.
+
+---
+
+### Configurazione delle chiavi e avvio produttivo
+
+`APP_ENCRYPTION_KEY` deve essere impostata esplicitamente in ogni ambiente: non esiste più una chiave Fernet di fallback. Per un **nuovo database di sviluppo**, generarla una sola volta con `Fernet.generate_key()` e conservarla nel proprio `.env` escluso da Git. La suite di test usa chiavi effimere e database isolati.
+
+Con `ENVIRONMENT=production`, la configurazione blocca l'avvio prima dell'accesso al database se `APP_SECRET_KEY` manca, è dimostrativa/prevedibile, ha meno di 32 caratteri o coincide con la chiave Fernet; anche `APP_ENCRYPTION_KEY` deve essere valida, canonica e diversa dai valori pubblicati nel vecchio codice/template. I database SQLite dimostrativi `aip_dev.db` e in memoria sono riservati a sviluppo/test. Impostare esplicitamente l'ambiente corretto: il default resta `development` per lo sviluppo locale.
+
+**Database esistenti:** conservare le chiavi correnti. Se una chiave in uso viene rifiutata, questa modifica richiede di fermare il rilascio: non sostituirla per superare il controllo. Servono un piano separato di compatibilità, backup verificato, migrazione e ripristino prima di qualsiasi rotazione. Il codice non ruota chiavi né migra ciphertext. Gli eventuali account demo già presenti in produzione richiedono una verifica e una bonifica manuale autorizzata; questo intervento non ne cambia le credenziali.
+
+Per dettagli, verifiche e limiti vedere [il rapporto F01/F02](docs/sicurezza_f01_f02.md).
 
 ---
 
