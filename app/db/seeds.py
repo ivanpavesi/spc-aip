@@ -2,6 +2,7 @@
 
 import logging
 from sqlalchemy.orm import Session
+from app.core.config import settings
 from app.core.security import hash_password
 from app.db.models.test_engine import TestDefinition
 from app.db.models.user import Therapist, User, UserRole
@@ -11,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def seed_database(db: Session) -> None:
-    """Verifica e popola il database con i questionari clinici standard e utenze iniziali di prova."""
+    """Popola il catalogo applicativo; aggiunge account demo solo in sviluppo/test."""
     # 1. Popolamento Catalogo Test
     bdi = db.query(TestDefinition).filter(TestDefinition.code == "BDI-II").first()
     if not bdi:
@@ -43,51 +44,9 @@ def seed_database(db: Session) -> None:
         db.add(stai_def)
         logger.info("Catalogo test: STAI-Y1 creato con successo.")
 
-    # 2. Utenze dimostrative iniziali (sviluppo)
-    admin_user = db.query(User).filter(User.email == "admin@spc.it").first()
-    if not admin_user:
-        admin_user = User(
-            email="admin@spc.it",
-            hashed_password=hash_password("admin"),
-            role=UserRole.ADMIN,
-            is_active=True,
-        )
-        db.add(admin_user)
-    else:
-        admin_user.hashed_password = hash_password("admin")
+    # 2. Account demo: il controllo è anche nel punto di ingresso diretto.
+    seed_demo_users(db)
 
-    therapist_user = db.query(User).filter(User.email == "terapeuta@spc.it").first()
-    if not therapist_user:
-        therapist_user = User(
-            email="terapeuta@spc.it",
-            hashed_password=hash_password("terapeuta"),
-            role=UserRole.THERAPIST,
-            is_active=True,
-        )
-        db.add(therapist_user)
-        db.flush()
-
-        therapist_profile = Therapist(
-            user_id=therapist_user.id,
-            full_name="Dott. Mario Rossi",
-            license_number="12345/Lazio",
-            order_region="Lazio",
-        )
-        db.add(therapist_profile)
-    else:
-        therapist_user.hashed_password = hash_password("terapeuta")
-
-    researcher_user = db.query(User).filter(User.email == "ricercatore@spc.it").first()
-    if not researcher_user:
-        researcher_user = User(
-            email="ricercatore@spc.it",
-            hashed_password=hash_password("ricercatore"),
-            role=UserRole.RESEARCHER,
-            is_active=True,
-        )
-        db.add(researcher_user)
-    else:
-        researcher_user.hashed_password = hash_password("ricercatore")
     # 3. Pulsanti di Analisi Clinica Preconfigurati (Scuole di Psicoterapia Cognitiva SPC/APC)
     from app.db.models.admin_config import ClinicalAnalysisButton, SystemSetting
 
@@ -203,3 +162,49 @@ def seed_database(db: Session) -> None:
             db.add(SystemSetting(key=key, value=val, description=desc))
 
     db.commit()
+
+
+def seed_demo_users(db: Session) -> None:
+    """Crea solo account mancanti in sviluppo/test, senza modificare utenze esistenti."""
+    if settings.ENVIRONMENT not in {"development", "testing"}:
+        return
+
+    # 2. Utenze dimostrative iniziali (sviluppo)
+    admin_user = db.query(User).filter(User.email == "admin@spc.it").first()
+    if not admin_user:
+        admin_user = User(
+            email="admin@spc.it",
+            hashed_password=hash_password("admin"),
+            role=UserRole.ADMIN,
+            is_active=True,
+        )
+        db.add(admin_user)
+
+    therapist_user = db.query(User).filter(User.email == "terapeuta@spc.it").first()
+    if not therapist_user:
+        therapist_user = User(
+            email="terapeuta@spc.it",
+            hashed_password=hash_password("terapeuta"),
+            role=UserRole.THERAPIST,
+            is_active=True,
+        )
+        db.add(therapist_user)
+        db.flush()
+
+        therapist_profile = Therapist(
+            user_id=therapist_user.id,
+            full_name="Dott. Mario Rossi",
+            license_number="12345/Lazio",
+            order_region="Lazio",
+        )
+        db.add(therapist_profile)
+
+    researcher_user = db.query(User).filter(User.email == "ricercatore@spc.it").first()
+    if not researcher_user:
+        researcher_user = User(
+            email="ricercatore@spc.it",
+            hashed_password=hash_password("ricercatore"),
+            role=UserRole.RESEARCHER,
+            is_active=True,
+        )
+        db.add(researcher_user)

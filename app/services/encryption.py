@@ -9,11 +9,10 @@ per garantire che:
 5. Sia predisposta la rotazione delle chiavi tramite MultiFernet.
 """
 
-import base64
 import logging
 from typing import List, Optional
 from cryptography.fernet import Fernet, MultiFernet, InvalidToken
-from app.core.config import settings
+from app.core.config import settings, validate_encryption_key
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +48,7 @@ class EncryptionService:
             fallback_keys: Lista opzionale di chiavi precedenti per consentire
                            la lettura durante le procedure di rotazione.
         """
-        key = primary_key or settings.APP_ENCRYPTION_KEY
+        key = settings.APP_ENCRYPTION_KEY if primary_key is None else primary_key
         if not key:
             raise EncryptionConfigurationError(
                 "Nessuna chiave di cifratura configurata. Impostare APP_ENCRYPTION_KEY nel file .env."
@@ -61,9 +60,8 @@ class EncryptionService:
 
         fernet_instances: List[Fernet] = []
         for k in keys_to_load:
-            clean_k = k.strip()
-            self._validate_key(clean_k)
-            fernet_instances.append(Fernet(clean_k.encode("utf-8")))
+            self._validate_key(k)
+            fernet_instances.append(Fernet(k.encode("utf-8")))
 
         # MultiFernet usa la prima chiave per cifrare e le successive per decifrare
         self._multi_fernet = MultiFernet(fernet_instances)
@@ -72,12 +70,10 @@ class EncryptionService:
     def _validate_key(key_str: str) -> None:
         """Verifica che la chiave rispetti rigorosamente i requisiti Fernet (32 byte base64)."""
         try:
-            raw = base64.urlsafe_b64decode(key_str.encode("utf-8"))
-            if len(raw) != 32:
-                raise ValueError("La lunghezza della chiave decodificata deve essere di esattamente 32 byte.")
-        except Exception as exc:
+            validate_encryption_key(key_str, production=settings.ENVIRONMENT == "production")
+        except ValueError as exc:
             raise EncryptionConfigurationError(
-                f"Chiave di cifratura non valida: deve essere una chiave Fernet di 32 byte URL-safe base64. Dettaglio: {exc}"
+                "Chiave di cifratura assente, non valida o non sicura per l'ambiente configurato."
             ) from exc
 
     def encrypt_text(self, plaintext: str) -> str:
