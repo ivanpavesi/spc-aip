@@ -11,33 +11,13 @@ from abc import ABC, abstractmethod
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from app.core.config import settings
+from app.services.ai.policy import (
+    AIProviderConfigurationError,
+    load_ai_settings,
+    resolve_ai_selection,
+)
 
 logger = logging.getLogger(__name__)
-
-
-SUPPORTED_PROVIDERS = {
-    "HEURISTIC_OFFLINE": {
-        "label": "Motore Clinico Euristico Locale (Offline CBT-SPC)",
-        "models": ["cbt-spc-offline"],
-    },
-    "GEMINI": {
-        "label": "Google Gemini",
-        "models": ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash"],
-    },
-    "OPENAI": {
-        "label": "OpenAI",
-        "models": ["gpt-4o", "gpt-4o-mini", "o3-mini", "o1"],
-    },
-    "ANTHROPIC": {
-        "label": "Anthropic Claude",
-        "models": ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022"],
-    },
-    "CUSTOM": {
-        "label": "Mistral AI / Endpoint Europeo / Ollama Locale",
-        "models": ["mistral-large-latest", "mistral-small-latest", "llama3.3:70b"],
-    },
-}
 
 
 class BaseAIProvider(ABC):
@@ -379,91 +359,52 @@ class HeuristicClinicalAIProvider(BaseAIProvider):
 
 
 def get_ai_provider(
-    provider_name: Optional[str] = None,
     model_name: Optional[str] = None,
     db: Optional[Any] = None,
 ) -> BaseAIProvider:
-    """Restituisce il provider AI desiderato o configurato.
+    """Selezione clinica vincolata al provider amministrativo; mai dedotta dal modello."""
+    settings_map = load_ai_settings(db)
+    target_provider, target_model = resolve_ai_selection(settings_map, model_name)
+    return _build_ai_provider(target_provider, target_model, settings_map)
 
-    Permette la selezione dinamica tra:
-    - Motore Euristico Locale (Offline)
-    - Google Gemini (1.5-pro, 1.5-flash, 2.0-flash)
-    - OpenAI (gpt-4o, gpt-4o-mini, o3-mini, o1)
-    - Anthropic Claude (claude-3-5-sonnet, haiku)
-    - Endpoint Personalizzato / Mistral AI / Ollama Locale
+
+def get_ai_provider_for_connection_test(provider_name: Optional[str], db: Any) -> BaseAIProvider:
+    """Solo per il router amministrativo: prova un destinatario senza materiale clinico.
+
+    Non aggiorna AI_PROVIDER e non abilita il destinatario per le analisi.
     """
-    settings_map = {}
-    if db:
-        try:
-            from app.db.models.admin_config import SystemSetting
-            settings_rows = db.query(SystemSetting).all()
-            settings_map = {s.key: s.value for s in settings_rows}
-        except Exception as exc:
-            logger.warning(f"Errore lettura impostazioni AI da DB ({exc})")
+    settings_map = load_ai_settings(db)
+    if provider_name:
+        settings_map["AI_PROVIDER"] = provider_name
+    target_provider, target_model = resolve_ai_selection(settings_map)
+    return _build_ai_provider(target_provider, target_model, settings_map)
 
-    # Determina il provider e il modello
-    target_provider = provider_name or settings_map.get("AI_PROVIDER") or "HEURISTIC_OFFLINE"
-    target_model = model_name
 
-    # Riconoscimento automatico del provider in base al modello selezionato dal terapeuta
-    if target_model:
-        if target_model.startswith("gemini"):
-            target_provider = "GEMINI"
-        elif target_model.startswith("gpt") or target_model.startswith("o1") or target_model.startswith("o3"):
-            target_provider = "OPENAI"
-        elif target_model.startswith("claude"):
-            target_provider = "ANTHROPIC"
-        elif target_model.startswith("mistral") or target_model.startswith("llama"):
-            target_provider = "CUSTOM"
-        elif target_model in ("cbt-spc-offline", "heuristic"):
-            target_provider = "HEURISTIC_OFFLINE"
+def _build_ai_provider(target_provider: str, target_model: str, settings_map: dict) -> BaseAIProvider:
+    if target_provider == "HEURISTIC_OFFLINE":
+        return HeuristicClinicalAIProvider(model_name=target_model)
 
-    temperature = float(settings_map.get("AI_TEMPERATURE", 0.2))
-
-    # 1. Google Gemini
-    if target_provider == "GEMINI":
-        api_key = settings_map.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
-        selected_model = target_model or settings_map.get("GEMINI_MODEL") or "gemini-1.5-pro"
-        if api_key:
-            try:
-                return GeminiAIProvider(api_key=api_key, model_name=selected_model, temperature=temperature)
-            except Exception as exc:
-                logger.warning(f"Impossibile inizializzare GeminiAIProvider ({exc}). Fallback euristico.")
-
-    # 2. OpenAI
-    elif target_provider == "OPENAI":
-        api_key = settings_map.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
-        selected_model = target_model or settings_map.get("OPENAI_MODEL") or "gpt-4o"
-        if api_key:
-            try:
-                return OpenAIProvider(api_key=api_key, model_name=selected_model, temperature=temperature)
-            except Exception as exc:
-                logger.warning(f"Impossibile inizializzare OpenAIProvider ({exc}). Fallback euristico.")
-
-    # 3. Anthropic Claude
-    elif target_provider == "ANTHROPIC":
-        api_key = settings_map.get("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
-        selected_model = target_model or settings_map.get("ANTHROPIC_MODEL") or "claude-3-5-sonnet-20241022"
-        if api_key:
-            try:
-                return AnthropicProvider(api_key=api_key, model_name=selected_model, temperature=temperature)
-            except Exception as exc:
-                logger.warning(f"Impossibile inizializzare AnthropicProvider ({exc}). Fallback euristico.")
-
-    # 4. Custom Endpoint (Mistral AI / Ollama / Endpoint Europeo)
-    elif target_provider == "CUSTOM":
-        base_url = settings_map.get("CUSTOM_AI_BASE_URL") or os.getenv("CUSTOM_AI_BASE_URL") or "https://api.mistral.ai/v1"
-        api_key = settings_map.get("CUSTOM_AI_API_KEY") or os.getenv("CUSTOM_AI_API_KEY")
-        selected_model = target_model or settings_map.get("CUSTOM_AI_MODEL") or "mistral-large-latest"
-        try:
-            return CustomOpenAICompatibleProvider(
+    try:
+        temperature = float(settings_map.get("AI_TEMPERATURE", "0.2"))
+        if target_provider == "CUSTOM":
+            base_url = settings_map.get("CUSTOM_AI_BASE_URL") or os.getenv("CUSTOM_AI_BASE_URL") or "https://api.mistral.ai/v1"
+            instance = CustomOpenAICompatibleProvider(
                 base_url=base_url,
-                api_key=api_key,
-                model_name=selected_model,
+                api_key=settings_map.get("CUSTOM_AI_API_KEY") or os.getenv("CUSTOM_AI_API_KEY"),
+                model_name=target_model,
                 temperature=temperature,
             )
-        except Exception as exc:
-            logger.warning(f"Impossibile inizializzare CustomOpenAICompatibleProvider ({exc}). Fallback euristico.")
+            if instance._client is None:
+                raise AIProviderConfigurationError("Client AI non disponibile.")
+            return instance
 
-    # Fallback predefinito garantito: Heuristic CBT-SPC
-    return HeuristicClinicalAIProvider(model_name="cbt-spc-offline")
+        key_name = f"{target_provider}_API_KEY"
+        api_key = settings_map.get(key_name) or os.getenv(key_name)
+        if not api_key:
+            raise AIProviderConfigurationError("Chiave API del provider abilitato non configurata.")
+        constructors = {"GEMINI": GeminiAIProvider, "OPENAI": OpenAIProvider, "ANTHROPIC": AnthropicProvider}
+        return constructors[target_provider](api_key=api_key, model_name=target_model, temperature=temperature)
+    except Exception:
+        # Non registrare eccezioni SDK che potrebbero contenere URL, chiavi o payload.
+        # Nessun fallback: il destinatario e la natura del report restano espliciti.
+        raise AIProviderConfigurationError("Provider AI abilitato non disponibile. Verificare la configurazione.") from None
