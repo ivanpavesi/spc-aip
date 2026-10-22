@@ -34,7 +34,7 @@ aip/
 │   │   ├── auth.py              # Login per operatori, setup 2FA (TOTP) e logout
 │   │   ├── therapist.py         # Gestione pazienti, assegnazione test, WhatsApp invite, sedute, AI
 │   │   ├── patient.py           # Compilazione questionari online (/p/{token}) e invio risposte
-│   │   ├── researcher.py        # Statistiche descrittive con Pandas, export CSV ed Excel
+│   │   ├── researcher.py        # Ricerca sospesa fino alle autorizzazioni per studio (F09)
 │   │   └── admin.py             # Governance catalogo test, utenze e audit trail
 │   ├── services/
 │   │   ├── encryption.py        # Crittografia applicativa Fernet/MultiFernet per campi sanitari
@@ -124,12 +124,12 @@ Per dettagli, verifiche e limiti vedere [il rapporto F01/F02](docs/sicurezza_f01
 2. Compila il questionario interattivo responsive.
 3. Clicca su **Invia definitivamente le risposte**.
 4. Il sistema esegue lo **scoring deterministico Python**, calcola punteggi e cut-off clinici, aggiorna lo stato a `COMPLETED` e blocca ulteriori invii (idempotenza).
-5. Se il paziente ha espresso il consenso alla ricerca, alimenta automaticamente l'osservatorio pseudonimizzato.
+5. Il risultato resta nel percorso clinico. Il conferimento alla ricerca e la creazione automatica di studi sono sospesi (F09 fase 1), anche in presenza del consenso generico registrato.
 
 ### C. Percorso Ricercatore
 1. Accedi con `ricercatore@spc.it`.
-2. Visualizza la tabella delle **Statistiche Descrittive Aggregate** (N campioni, Media, Deviazione Standard, Mediana, Min e Max per ciascun test) calcolate con Pandas e NumPy.
-3. Scarica i dataset pseudonimizzati cliccando su **Esporta CSV** o **Esporta Excel** (l'operazione viene registrata nel registro di audit).
+2. **Dashboard e download CSV/Excel sono temporaneamente sospesi:** restituiscono 403 dopo autenticazione, anche agli amministratori. Nessun ruolo generale costituisce un'autorizzazione per studio.
+3. Il ripristino richiederà il modulo di autorizzazione per ricercatore/studio/protocollo, gestione documentata dei consensi e delle revoche, ammissibilità dei dati e protezioni degli aggregati. Non esiste un flag per riattivare gli export globali. Dettagli e limiti del contenimento in [F09 fase 1](docs/sicurezza_f09_fase1.md).
 
 ### D. Percorso Amministratore (Governance di Sistema)
 1. Accedi con `admin` (password: `admin`).

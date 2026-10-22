@@ -72,7 +72,8 @@ def test_activation_rotates_session_revokes_others_and_never_reveals_active_secr
     assert read_totp_secret(user.totp_secret) == secret
     assert client.cookies.get("aip_session") != previous_token
     assert db_session.query(AuthSession).filter_by(user_id=user.id).count() == 1
-    assert client.get("/researcher/dashboard").status_code == 200
+    # La pagina MFA verifica la sessione valida; la ricerca è sospesa da F09.
+    assert client.get("/auth/totp/setup").status_code == 200
     active_page = client.get("/auth/totp/setup")
     assert secret not in active_page.text and "otpauth:" not in active_page.text
     assert verify(client, active_page, pyotp.TOTP(secret).now()).status_code == 401
@@ -130,7 +131,7 @@ def test_existing_plaintext_totp_login_consumes_code_and_rejects_replay(client, 
     assert login(client).status_code == 401
     assert login(client, "abcdef").status_code == 401
     assert login(client, code).status_code == 303
-    assert client.get("/researcher/dashboard").status_code == 200
+    assert client.get("/auth/totp/setup").status_code == 200
     assert login(client, code).status_code == 401
     db_session.refresh(user)
     assert user.totp_last_counter is not None
@@ -163,16 +164,16 @@ def test_required_incomplete_account_has_only_enrollment_access(client, db_sessi
     assert client.get("/researcher/dashboard").status_code == 401
     start = begin(client)
     assert verify(client, start, pyotp.TOTP(secret_from(start)).now()).status_code == 303
-    assert client.get("/researcher/dashboard").status_code == 200
+    assert client.get("/auth/totp/setup").status_code == 200
 
 
 def test_no_mfa_accounts_and_other_users_sessions_remain_compatible(client, db_session):
     user = new_user(db_session)
     token = create_user_session(db_session, user, mfa_verified=False)
     set_cookie(client, token)
-    assert client.get("/researcher/dashboard").status_code == 200
+    assert client.get("/auth/totp/setup").status_code == 200
     assert login(client).status_code == 303
-    assert client.get("/researcher/dashboard").status_code == 200
+    assert client.get("/auth/totp/setup").status_code == 200
     db_session.refresh(user)
     assert not user.totp_required and user.mfa_version == 0
 
