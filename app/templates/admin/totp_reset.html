@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<main class="max-w-lg mx-auto p-8">
+  <h1>Reset del secondo fattore</h1>
+  <p>Account: {{ target.email }}</p>
+  <p>Verifica l'identità del titolare attraverso un canale indipendente. Il reset revoca tutte le sue sessioni e richiede una nuova configurazione prima dell'accesso. Non è consentito il reset del proprio account.</p>
+  {% if not user.totp_enabled %}
+  <p>Per eseguire reset su altri account, attiva prima la 2FA del tuo account dalla pagina Sicurezza account.</p>
+  {% else %}
+  <form method="post" class="space-y-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label>Password dell'amministratore <input type="password" name="password" required autocomplete="current-password"></label>
+    {% if user.totp_enabled %}
+    <label>Nuovo codice dell'app dell'amministratore <input name="current_code" required pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code"></label>
+    {% endif %}
+    <label><input type="checkbox" name="identity_confirmed" value="yes" required> Ho verificato l'identità del titolare attraverso un canale indipendente.</label>
+    <button type="submit">Conferma reset e revoca sessioni</button>
+  </form>
+  {% endif %}
+</main>
+{% endblock %}

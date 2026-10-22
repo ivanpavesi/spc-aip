@@ -38,6 +38,9 @@
     
     <!-- Contenuto principale -->
     <div class="flex-1 flex flex-col justify-between">
+        {% if user is defined and user %}
+        <div class="text-right px-4"><a href="/auth/totp/setup" class="text-sm underline">Sicurezza account · 2FA</a></div>
+        {% endif %}
         {% block content %}{% endblock %}
     </div>
 

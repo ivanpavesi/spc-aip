@@ -79,16 +79,24 @@ def test_totp_two_factor_workflow(client: TestClient, db_session: Session):
     assert res_setup.status_code == 200
     assert "Configurazione Autenticazione a Due Fattori" in res_setup.text
 
-    # Recupera il segreto generato per l'utente dal database
+    import re
+    csrf = re.search(r'name="csrf_token" value="([^"]+)"', res_setup.text).group(1)
+    started = client.post("/auth/totp/setup", data={"password": "Pass12345!", "csrf_token": csrf})
+    assert started.status_code == 200
+    secret = re.search(r'id="totp-secret">([^<]+)', started.text).group(1)
+
+    csrf = re.search(r'name="csrf_token" value="([^"]+)"', started.text).group(1)
+
+    # Il fattore resta inattivo fino alla conferma.
     db_user = db_session.query(User).filter_by(email="mfa.user@spc.it").first()
-    assert db_user.totp_secret is not None
+    assert db_user.totp_secret is None
 
     # Genera codice valido con pyotp
-    totp = pyotp.TOTP(db_user.totp_secret)
+    totp = pyotp.TOTP(secret)
     valid_code = totp.now()
 
     # Invia verifica
-    res_verify = client.post("/auth/totp/verify", data={"code": valid_code}, follow_redirects=False)
+    res_verify = client.post("/auth/totp/verify", data={"code": valid_code, "csrf_token": csrf}, follow_redirects=False)
     assert res_verify.status_code == 303
 
     # Verifica che totp_enabled sia diventato True

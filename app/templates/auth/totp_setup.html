@@ -1,65 +1,36 @@
 {% extends "base.html" %}
-
-{% block title %}Attivazione 2FA (TOTP) — Scuole di Psicoterapia Cognitiva (AIP){% endblock %}
-
+{% block title %}Configurazione 2FA — AIP{% endblock %}
 {% block content %}
-<main class="w-full max-w-lg mx-auto px-4 py-12 flex flex-col items-center">
-
-    <article class="w-full bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 card-elevation">
-        
-        <div class="text-center mb-6">
-            <span class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-teal-50 text-teal-800 mb-3" aria-hidden="true">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-                </svg>
-            </span>
-            <h1 class="text-xl font-bold text-[#0F172A]">Configurazione Autenticazione a Due Fattori (2FA)</h1>
-            <p class="text-xs text-slate-500 mt-1">Protezione dell'account professionale per dati sanitari</p>
-        </div>
-
-        {% if error_msg %}
-        <div class="mb-5 p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-800" role="alert">
-            {{ error_msg }}
-        </div>
-        {% endif %}
-
-        <div class="space-y-4 text-xs text-slate-600 mb-6">
-            <p>1. Apri la tua app di autenticazione preferita (es. Google Authenticator, Microsoft Authenticator o Bitwarden).</p>
-            <p>2. Aggiungi un nuovo account inserendo manualmente la seguente chiave segreta:</p>
-            
-            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 font-mono text-center text-sm font-bold text-slate-800 select-all">
-                {{ secret }}
-            </div>
-
-            <p>3. Inserisci il codice a 6 cifre generato dall'app per confermare l'attivazione:</p>
-        </div>
-
-        <form action="/auth/totp/verify" method="POST" class="space-y-4">
-            <div>
-                <label for="code" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                    Codice di Verifica
-                </label>
-                <input 
-                    type="text" 
-                    id="code" 
-                    name="code" 
-                    required 
-                    maxlength="6"
-                    placeholder="123456"
-                    autocomplete="one-time-code"
-                    class="w-full px-4 py-3 rounded-xl border border-slate-300 text-center font-mono text-lg tracking-widest focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20"
-                >
-            </div>
-
-            <button 
-                type="submit" 
-                class="w-full inline-flex items-center justify-center px-6 py-3 rounded-xl text-sm font-semibold text-white bg-[#0F172A] hover:bg-[#1E293B] btn-transition shadow-sm"
-            >
-                Attiva e Salva 2FA
-            </button>
-        </form>
-
-    </article>
-
+<main class="w-full max-w-lg mx-auto px-4 py-12">
+  <h1 class="text-xl font-bold">Configurazione Autenticazione a Due Fattori (2FA)</h1>
+  {% if user.totp_enabled %}
+  <p>La 2FA è attiva. Il segreto attuale non è visualizzabile. Puoi sostituire il fattore confermando password e codice attuale.</p>
+  {% elif user.totp_required %}
+  <p>Completa la nuova configurazione per accedere alla piattaforma.</p>
+  {% endif %}
+  {% if secret %}
+  <p>Aggiungi un account TOTP nell'app di autenticazione (6 cifre, intervallo 30 secondi) con questa chiave. Conservala in modo sicuro: viene mostrata solo ora.</p>
+  <p class="font-mono select-all" id="totp-secret">{{ secret }}</p>
+  {% endif %}
+  {% if pending %}
+  <p>Conferma il nuovo codice entro 5 minuti. Se hai perso la chiave, riavvia la configurazione qui sotto. Il fattore attuale rimane valido fino alla conferma.</p>
+  <form action="/auth/totp/verify" method="post" class="space-y-4 my-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label for="code">Codice della nuova app</label>
+    <input id="code" name="code" required pattern="[0-9]{6}" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+    <button type="submit">Attiva e salva 2FA</button>
+  </form>
+  {% endif %}
+  <form action="/auth/totp/setup" method="post" class="space-y-4 my-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label for="password">Conferma la password attuale</label>
+    <input id="password" name="password" type="password" required autocomplete="current-password">
+    {% if user.totp_enabled %}
+    <label for="current-code">Codice dell'app attuale (attendi un nuovo codice se appena usato)</label>
+    <input id="current-code" name="current_code" required pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code">
+    {% endif %}
+    <button type="submit">Inizia nuova configurazione</button>
+  </form>
+  <a href="/auth/login">Torna alla piattaforma</a>
 </main>
 {% endblock %}

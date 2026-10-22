@@ -7,9 +7,11 @@ Questo modulo garantisce che:
 4. Gli identificatori clinici e di ricerca (codici pseudonimi) siano privi di qualsiasi informazione personale.
 """
 
+import binascii
 import hashlib
 import hmac
 import secrets
+from time import time
 from typing import Tuple
 
 
@@ -89,11 +91,39 @@ def get_totp_uri(secret: str, account_name: str, issuer_name: str = "SPC-AIP") -
     return totp.provisioning_uri(name=account_name, issuer_name=issuer_name)
 
 
-def verify_totp_code(secret: str, code: str) -> bool:
-    """Verifica un codice a 6 cifre fornito dall'utente per il secondo fattore."""
-    if not secret or not code:
-        return False
+def matching_totp_counter(secret: str, code: str, now=None):
+    """Restituisce il contatore RFC 6238, senza consumarlo (vedi core.mfa)."""
     import pyotp
-    totp = pyotp.TOTP(secret)
-    # Permette una finestra di tolleranza di 1 intervallo (±30 secondi) per disallineamenti orari
-    return totp.verify(code.strip(), valid_window=1)
+    if not secret or not code or len(code) != 6 or not code.isascii() or not code.isdigit():
+        return None
+    try:
+        secret = read_totp_secret(secret)
+        if not secret:
+            return None
+        totp = pyotp.TOTP(secret)
+        counter = int(time() if now is None else now) // totp.interval
+        # ASVS 5.0, 6.5.5: durata massima TOTP di 30 secondi.
+        return counter if hmac.compare_digest(totp.generate_otp(counter), code) else None
+    except (ValueError, TypeError, binascii.Error):
+        return None
+
+
+def verify_totp_code(secret: str, code: str) -> bool:
+    """Solo verifica crittografica; i flussi autenticativi devono consumare il contatore."""
+    return matching_totp_counter(secret, code) is not None
+
+
+def read_totp_secret(stored):
+    """Legge i segreti legacy; i nuovi fattori sono cifrati con la chiave esistente."""
+    import base64
+    from app.services.encryption import encryption_service, DecryptionError
+    if not stored:
+        return None
+    try:
+        secret = encryption_service.decrypt_text(stored[4:]) if stored.startswith("enc:") else stored
+        if len(secret) < 16:
+            return None
+        base64.b32decode(secret + "=" * (-len(secret) % 8), casefold=True)
+        return secret.upper()
+    except (DecryptionError, ValueError, TypeError, binascii.Error):
+        return None

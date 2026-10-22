@@ -210,12 +210,12 @@
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                                         Attivo
                                     </span>
-                                    <form action="/admin/users/{{ u.id }}/reset-totp" method="POST" class="inline" onsubmit="return confirm('Disattivare la 2FA per questo utente?');">
-                                        <button type="submit" class="text-[10px] text-slate-400 hover:text-red-600 underline">Reset</button>
-                                    </form>
+                                    {% if u.id != user.id %}
+                                    <a href="/admin/users/{{ u.id }}/reset-totp" class="text-xs underline">Reset protetto</a>
+                                    {% endif %}
                                 </div>
                                 {% else %}
-                                <span class="text-slate-400">Non configurato</span>
+                                <span class="text-slate-400">{% if u.totp_required %}Nuova configurazione richiesta{% else %}Non configurato{% endif %}</span>
                                 {% endif %}
                             </td>
                             <td class="px-6 py-4">

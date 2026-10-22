@@ -79,3 +79,18 @@ def client(db_session: Session) -> TestClient:
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+def deterministic_totp_clock(monkeypatch):
+    """Fissa solo l'orologio TOTP: evita codici che scadono durante una richiesta.
+
+    Scadenze delle sessioni e dell'enrollment continuano a usare datetime reale.
+    I test del confine dei 30 secondi avanzano esplicitamente il tempo.
+    """
+    import pyotp
+    from types import SimpleNamespace
+    clock = SimpleNamespace(now=1800000015)
+    monkeypatch.setattr("app.core.security.time", lambda: clock.now)
+    monkeypatch.setattr(pyotp.TOTP, "now", lambda self: self.at(clock.now))
+    return clock
