@@ -17,6 +17,7 @@ from app.db.models.test_engine import TestAssignment, TestDefinition, TestRespon
 from app.db.models.user import Therapist, User
 from app.db.session import get_db
 from app.services.ai.provider import get_ai_provider
+from app.services.ai.policy import AIProviderConfigurationError, AIProviderPolicyError, available_ai_models
 from app.services.documents import extract_text_from_file
 from app.services.encryption import encryption_service
 
@@ -255,16 +256,10 @@ def patient_detail(
     ).order_by(ClinicalAnalysisButton.display_order.asc()).all()
 
     # Modelli LLM selezionabili dal terapeuta
-    available_models = [
-        {"id": "", "name": "⚡ Predefinito di Sistema (Configurato dall'Amministratore)"},
-        {"id": "gemini-1.5-pro", "name": "Google Gemini 1.5 Pro (Formulazione Complessa)"},
-        {"id": "gemini-1.5-flash", "name": "Google Gemini 1.5 Flash (Veloce)"},
-        {"id": "gpt-4o", "name": "OpenAI GPT-4o (Avanzato Multimodale)"},
-        {"id": "gpt-4o-mini", "name": "OpenAI GPT-4o-mini (Standard Rapido)"},
-        {"id": "claude-3-5-sonnet-20241022", "name": "Anthropic Claude 3.5 Sonnet (Accuratezza Clinica)"},
-        {"id": "mistral-large-latest", "name": "Mistral AI / Endpoint Europeo"},
-        {"id": "cbt-spc-offline", "name": "Motore Clinico Euristico Locale (Offline CBT-SPC)"},
-    ]
+    try:
+        available_models = available_ai_models(db)
+    except AIProviderConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from None
 
     return templates.TemplateResponse(
         request=request,
@@ -395,6 +390,14 @@ def run_clinical_analysis(
 
     clinical_rec = db.query(ClinicalRecord).filter(ClinicalRecord.patient_id == patient.id).first()
 
+    # Autorizza la destinazione PRIMA di decifrare o assemblare materiale clinico.
+    try:
+        ai_provider = get_ai_provider(model_name=llm_model, db=db)
+    except AIProviderPolicyError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from None
+    except AIProviderConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from None
+
     # Raccoglie il contesto clinico autorizzato (sedute e punteggi test)
     context_parts = [f"Cartella Pseudonimo: {clinical_rec.pseudonym_code}"]
 
@@ -438,8 +441,6 @@ def run_clinical_analysis(
     if not reference_texts:
         reference_texts = ["Manuale Cognitivo SPC - Modello di Formulazione del Caso Clinico"]
 
-    chosen_model = llm_model if llm_model and llm_model.strip() else None
-    ai_provider = get_ai_provider(model_name=chosen_model, db=db)
     analysis_result = ai_provider.generate_clinical_analysis(
         analysis_type=analysis_type,
         system_prompt=sys_prompt,

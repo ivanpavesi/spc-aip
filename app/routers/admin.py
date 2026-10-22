@@ -24,7 +24,8 @@ from app.db.models.audit import AuditEvent
 from app.db.models.test_engine import TestDefinition
 from app.db.models.user import AuthSession, Therapist, User, UserRole
 from app.db.session import get_db
-from app.services.ai.provider import get_ai_provider
+from app.services.ai.provider import get_ai_provider_for_connection_test
+from app.services.ai.policy import AIProviderConfigurationError
 from app.services.documents import extract_text_from_file
 
 router = APIRouter(prefix="/admin", tags=["Amministrazione"])
@@ -813,7 +814,10 @@ def test_ai_connection(
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> Response:
-    provider = get_ai_provider(provider_name=target_provider, db=db)
+    try:
+        provider = get_ai_provider_for_connection_test(target_provider, db)
+    except AIProviderConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from None
     is_ok, message = provider.test_connection()
 
     status_param = "msg" if is_ok else "err"
