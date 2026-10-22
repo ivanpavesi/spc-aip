@@ -240,9 +240,9 @@ def patient_detail(
     invite_url = None
     whatsapp_url = None
     if invited_token:
-        # Costruisce URL sicuro per il paziente (es. http://127.0.0.1:8000/p/{token})
+        # Il parametro non è attendibile: codificarlo come singolo segmento di percorso.
         base_url = str(request.base_url).rstrip("/")
-        invite_url = f"{base_url}/p/{invited_token}"
+        invite_url = f"{base_url}/p/{quote(invited_token, safe='')}"
         wa_message = (
             f"Gentile paziente, per la compilazione dei questionari clinici concordati, "
             f"può accedere tramite questo link sicuro: {invite_url}"

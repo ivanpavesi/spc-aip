@@ -56,7 +56,7 @@
                     >
                     <button 
                         type="button" 
-                        onclick="navigator.clipboard.writeText('{{ invite_url }}'); this.innerText='Copiato!';" 
+                        id="copy-invite-link"
                         class="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-teal-800 hover:bg-teal-900 transition-colors"
                     >
                         Copia Link Invito
@@ -72,6 +72,7 @@
                     </a>
                     {% endif %}
                 </div>
+                <p id="invite-copy-status" role="status" class="mt-2 text-xs text-teal-800"></p>
             </div>
         </div>
     </div>
@@ -308,4 +309,8 @@
     </section>
 
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/invitation-link.js" defer></script>
 {% endblock %}
