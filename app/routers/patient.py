@@ -9,9 +9,6 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.core.security import hash_token
-from app.db.models.clinical import ClinicalRecord
-from app.db.models.patient import PatientIdentity
-from app.db.models.research import ResearchDataset, ResearchStudy
 from app.db.models.test_engine import TestAssignment, TestDefinition, TestResponse, TestScore, TestStatus
 from app.db.session import get_db
 from app.services.scoring.engine import PsychometricScoringEngine, ScoringError
@@ -203,37 +200,9 @@ async def submit_questionnaire(
         assignment.status = TestStatus.COMPLETED
         assignment.completed_at = now
 
-        # 4. Se il paziente ha prestato consenso alla ricerca, alimenta il ResearchDataset pseudonimizzato
-        clinical_record = db.query(ClinicalRecord).filter(ClinicalRecord.id == assignment.clinical_record_id).first()
-        if clinical_record and clinical_record.patient:
-            patient = clinical_record.patient
-            if patient.gdpr_research_consent:
-                # Trova o associa a studio generale
-                study = db.query(ResearchStudy).filter(ResearchStudy.is_active == True).first()
-                if not study:
-                    study = ResearchStudy(
-                        code="SPC-OSSERVATORIO-CLINICO",
-                        title="Osservatorio Clinico Psicometrico SPC/APC",
-                        description="Studio osservazionale sull'efficacia dei protocolli CBT",
-                    )
-                    db.add(study)
-                    db.flush()
-
-                # Calcolo fascia d'età per minimizzare il rischio di re-identificazione
-                age_bracket = "NON_SPECIFICATO"
-                if patient.date_of_birth:
-                    approx_age = (now.date() - patient.date_of_birth).days // 365
-                    age_bracket = f"{(approx_age // 10) * 10}-{(approx_age // 10) * 10 + 9}"
-
-                research_data = ResearchDataset(
-                    study_id=study.id,
-                    pseudonym_code=clinical_record.pseudonym_code,
-                    test_code=assignment.test_definition.code,
-                    scores_data=calculated_results["raw_scores"],
-                    minified_demographics={"age_bracket": age_bracket},
-                    consent_verified=True,
-                )
-                db.add(research_data)
+        # F09 fase 1: nessun conferimento alla ricerca senza un protocollo e
+        # autorizzazioni verificabili. Il consenso generico non associa studi.
+        # Il salvataggio clinico resta indipendente dalla ricerca sospesa.
 
         db.commit()
 

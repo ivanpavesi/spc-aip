@@ -52,10 +52,10 @@ def test_rbac_access_control(client: TestClient, db_session: Session):
         data={"email": "ricercatore.test@spc.it", "password": "Pass12345!"},
     )
 
-    # Accesso a /researcher/dashboard -> 200
+    # F09: il ruolo generale non abilita la ricerca senza autorizzazioni per studio.
     res_research = client.get("/researcher/dashboard")
-    assert res_research.status_code == 200
-    assert "Area Ricerca Scientifica" in res_research.text
+    assert res_research.status_code == 403
+    assert "temporaneamente sospesa" in res_research.text
 
     # Accesso vietato a /therapist/dashboard -> 403 Forbidden
     res_therapist = client.get("/therapist/dashboard")

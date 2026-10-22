@@ -1,17 +1,29 @@
 """Test del flusso end-to-end: creazione paziente, assegnazione test, compilazione e scoring (STEP 3 & 4)."""
 
 from fastapi.testclient import TestClient
+import pytest
 from sqlalchemy.orm import Session
 from app.core.security import hash_password
 from app.db.models.clinical import ClinicalRecord
 from app.db.models.patient import PatientIdentity
-from app.db.models.research import ResearchDataset
-from app.db.models.test_engine import TestAssignment, TestDefinition, TestStatus
+from app.db.models.research import ResearchDataset, ResearchStudy
+from app.db.models.test_engine import TestAssignment, TestDefinition, TestResponse, TestStatus
 from app.db.models.user import Therapist, User, UserRole
 
 
-def test_complete_patient_and_questionnaire_flow(client: TestClient, db_session: Session):
+@pytest.mark.parametrize("research_consent", [False, True])
+@pytest.mark.parametrize("study_state", ["missing", "active", "inactive", "multiple"])
+def test_complete_patient_and_questionnaire_flow(client: TestClient, db_session: Session, research_consent, study_state):
     """Verifica il percorso completo tra terapeuta e paziente."""
+    if study_state != "missing":
+        study = ResearchStudy(code="F09-PATIENT-SYNTH", title="Studio sintetico preesistente",
+                              is_active=study_state != "inactive")
+        db_session.add(study)
+        if study_state == "multiple":
+            db_session.add(ResearchStudy(code="F09-PATIENT-SYNTH-OTHER", title="Altro studio sintetico"))
+        db_session.commit()
+    studies_before = db_session.query(ResearchStudy).count()
+    datasets_before = db_session.query(ResearchDataset).count()
     # 1. Login Terapeuta
     therapist_user = User(
         email="dr.giorgio@spc.it",
@@ -36,7 +48,7 @@ def test_complete_patient_and_questionnaire_flow(client: TestClient, db_session:
             "date_of_birth": "1990-05-15",
             "tax_id": "FNTLNE90E55H501K",
             "gdpr_clinical": "true",
-            "gdpr_research": "true",
+            "gdpr_research": str(research_consent).lower(),
         },
         follow_redirects=False,
     )
@@ -47,7 +59,7 @@ def test_complete_patient_and_questionnaire_flow(client: TestClient, db_session:
     # Verifica nel database che il paziente sia stato creato
     patient_db = db_session.query(PatientIdentity).filter_by(id=patient_id).first()
     assert patient_db is not None
-    assert patient_db.gdpr_research_consent is True
+    assert patient_db.gdpr_research_consent is research_consent
 
     # 3. Assegnazione questionario BDI-II
     bdi_def = db_session.query(TestDefinition).filter_by(code="BDI-II").first()
@@ -65,6 +77,7 @@ def test_complete_patient_and_questionnaire_flow(client: TestClient, db_session:
 
     # 4. Accesso Paziente con il token ricevuto
     # Logout operatore per simulare browser del paziente
+    therapist_token = client.cookies.get("aip_session")
     client.cookies.clear()
 
     res_portal = client.get(f"/p/{token}")
@@ -85,12 +98,17 @@ def test_complete_patient_and_questionnaire_flow(client: TestClient, db_session:
     assert assignment.score.raw_scores["total"] == 21.0
     assert assignment.score.interpretation_summary["severity"] == "MODERATA"
 
-    # 7. Verifica che il dataset di ricerca pseudonimizzato sia stato popolato
-    research_entry = db_session.query(ResearchDataset).filter_by(test_code="BDI-II").first()
-    assert research_entry is not None
-    assert research_entry.scores_data["total"] == 21.0
-    assert research_entry.minified_demographics["age_bracket"] != "N/D"
+    # 7. F09: nessuno studio o conferimento implicito, anche con consenso generico.
+    assert db_session.query(ResearchDataset).count() == datasets_before
+    assert db_session.query(ResearchStudy).count() == studies_before
+    saved_response = db_session.query(TestResponse).filter_by(test_assignment_id=assignment.id).one()
+    assert len(saved_response.raw_answers) == 21
 
     # 8. Non deve essere possibile reinviare lo stesso questionario (idempotenza / blocco 400)
     res_repeat = client.post(f"/p/{token}/submit", data=answers_form)
     assert res_repeat.status_code == 400
+
+    # Le risposte e i punteggi restano consultabili dal terapeuta titolare.
+    client.cookies.set("aip_session", therapist_token)
+    assert client.get(patient_url).status_code == 200
+    assert client.get(f"/therapist/results/{assignment.id}").status_code == 200
