@@ -30,7 +30,7 @@ def test_admin_dashboard_access_and_rbac(client: TestClient, db_session: Session
     assert "Utenze & Ruoli" in res_admin.text
 
 
-def test_admin_user_management(client: TestClient, db_session: Session):
+def test_admin_user_management(client: TestClient, db_session: Session, deterministic_totp_clock):
     """Verifica creazione, cambio ruolo, reset password e blocco utenze da amministratore."""
     client.post("/auth/login", data={"email": "admin@spc.it", "password": "admin"})
 
@@ -88,7 +88,19 @@ def test_admin_user_management(client: TestClient, db_session: Session):
     created_user.totp_enabled = True
     created_user.totp_secret = "JBSWY3DPEHPK3PXP"
     db_session.commit()
-    res_totp = client.post(f"/admin/users/{created_user.id}/reset-totp", follow_redirects=False)
+    import re
+    import pyotp
+    setup = client.get("/auth/totp/setup")
+    csrf = re.search(r'name="csrf_token" value="([^"]+)"', setup.text).group(1)
+    started = client.post("/auth/totp/setup", data={"password": "admin", "csrf_token": csrf})
+    secret = re.search(r'id="totp-secret">([^<]+)', started.text).group(1)
+    csrf = re.search(r'name="csrf_token" value="([^"]+)"', started.text).group(1)
+    assert client.post("/auth/totp/verify", data={"code": pyotp.TOTP(secret).now(), "csrf_token": csrf}, follow_redirects=False).status_code == 303
+    deterministic_totp_clock.now += 30
+    page = client.get(f"/admin/users/{created_user.id}/reset-totp")
+    csrf = re.search(r'name="csrf_token" value="([^"]+)"', page.text).group(1)
+    res_totp = client.post(f"/admin/users/{created_user.id}/reset-totp",
+        data={"password": "admin", "identity_confirmed": "yes", "csrf_token": csrf, "current_code": pyotp.TOTP(secret).now()}, follow_redirects=False)
     assert res_totp.status_code == 303
     db_session.refresh(created_user)
     assert created_user.totp_enabled is False

@@ -16,7 +16,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Reques
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from app.core.auth import require_admin
+from app.core.auth import require_admin, rotate_session_token, set_session_cookie
+from app.core import mfa
 from app.core.security import hash_password
 from app.db.models.admin_config import ClinicalAnalysisButton, ScientificDocument, SystemSetting
 from app.db.models.audit import AuditEvent
@@ -265,34 +266,47 @@ def reset_user_password(
     )
 
 
-@router.post("/users/{user_id}/reset-totp", summary="Disattiva 2FA TOTP per Utente")
-def reset_user_totp(
-    user_id: str,
-    request: Request,
-    user: User = Depends(require_admin),
-    db: Session = Depends(get_db),
-) -> Response:
-    target_user = db.query(User).filter(User.id == user_id).first()
-    if not target_user:
-        raise HTTPException(status_code=404, detail="Utente non trovato.")
+@router.get("/users/{user_id}/reset-totp", response_class=HTMLResponse)
+def reset_totp_page(user_id: str, request: Request, user: User = Depends(require_admin),
+                    db: Session = Depends(get_db)):
+    target = db.get(User, user_id)
+    if not target:
+        raise HTTPException(404, "Utente non trovato.")
+    return templates.TemplateResponse(request=request, name="admin/totp_reset.html",
+        context={"user": user, "target": target, "csrf_token": mfa.csrf_token(request)},
+        headers={"Cache-Control": "no-store"})
 
+
+@router.post("/users/{user_id}/reset-totp", summary="Reset protetto del fattore TOTP")
+def reset_user_totp(user_id: str, request: Request, password: str = Form(...),
+                    current_code: str = Form(""), csrf_token: str = Form(""),
+                    identity_confirmed: str = Form(""),
+                    user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    mfa.same_origin(request, csrf_token)
+    if user_id == user.id or identity_confirmed != "yes":
+        mfa.reject(db, user, request, "MFA_RESET_DENIED", 403)
+    mfa.guard_user(db, user)
+    if user.role != UserRole.ADMIN or not user.totp_enabled:
+        mfa.reject(db, user, request, "MFA_RESET_DENIED", 403)
+    mfa.reauthenticate(db, user, password, current_code, request)
+    target_user = db.get(User, user_id)
+    if not target_user:
+        raise HTTPException(404, "Utente non trovato.")
+    mfa.guard_user(db, target_user, require_active=False)
     target_user.totp_enabled = False
     target_user.totp_secret = None
-
-    log_admin_audit(
-        db,
-        actor=user,
-        action="USER_TOTP_RESET",
-        resource_type="User",
-        resource_id=target_user.id,
-        request=request,
-    )
+    target_user.totp_required = True
+    target_user.totp_last_counter = None
+    target_user.mfa_failures = 0
+    target_user.mfa_locked_until = None
+    mfa.invalidate_sessions(db, target_user)
+    event = mfa.audit(db, user, "USER_TOTP_RESET", request, target_id=target_user.id)
+    event.technical_details = {"identity_proofing": "operator_confirmed_independent_channel"}
+    token = rotate_session_token(request, db)
     db.commit()
-
-    return RedirectResponse(
-        url="/admin/dashboard?tab=users&msg=2FA+TOTP+disattivata+con+successo",
-        status_code=status.HTTP_303_SEE_OTHER,
-    )
+    response = RedirectResponse("/admin/dashboard?tab=users&msg=2FA+resettata:+nuova+configurazione+richiesta", status_code=303)
+    set_session_cookie(response, token)
+    return response
 
 
 @router.post("/users/{user_id}/toggle-active", summary="Attiva/Disattiva Utente")

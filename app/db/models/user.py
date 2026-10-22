@@ -4,7 +4,7 @@ import enum
 import uuid
 from datetime import datetime
 from typing import List, Optional
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, Text
+from sqlalchemy import BigInteger, Boolean, DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base, TimestampMixin
 
@@ -58,7 +58,7 @@ class User(Base, TimestampMixin):
 
     # Secondo fattore di autenticazione (TOTP)
     totp_secret: Mapped[Optional[str]] = mapped_column(
-        String(64),
+        Text,
         nullable=True,
         doc="Segreto TOTP per 2FA",
     )
@@ -67,6 +67,13 @@ class User(Base, TimestampMixin):
         default=False,
         nullable=False,
     )
+
+    # Versione del fattore: invalida solo le sessioni dell'account modificato.
+    mfa_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    totp_required: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", nullable=False)
+    totp_last_counter: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    mfa_failures: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    mfa_locked_until: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relazione opzionale con il profilo Terapeuta
     therapist_profile: Mapped[Optional["Therapist"]] = relationship(
@@ -113,6 +120,11 @@ class AuthSession(Base, TimestampMixin):
         nullable=False,
         doc="True se il secondo fattore TOTP è stato verificato con successo",
     )
+    mfa_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    # Enrollment legato alla sessione, con scadenza e password appena verificata.
+    totp_pending_secret: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    totp_pending_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

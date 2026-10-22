@@ -38,6 +38,14 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Esegue le migrazioni in modalità 'online' con connessione attiva."""
+    # Consente test su connessioni isolate senza cambiare configurazione runtime.
+    supplied_connection = config.attributes.get("connection")
+    if supplied_connection is not None:
+        context.configure(connection=supplied_connection, target_metadata=target_metadata)
+        with context.begin_transaction():
+            context.run_migrations()
+        return
+
     configuration = config.get_section(config.config_ini_section, {})
     configuration["sqlalchemy.url"] = settings.DATABASE_URL
 

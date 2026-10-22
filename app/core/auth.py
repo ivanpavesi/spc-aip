@@ -6,7 +6,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from app.core.config import settings
-from app.core.security import generate_secure_token, hash_token, verify_password
+from app.core.security import generate_secure_token, hash_token, read_totp_secret
 from app.db.models.user import AuthSession, User, UserRole
 from app.db.session import get_db
 
@@ -24,6 +24,7 @@ def create_user_session(db: Session, user: User, mfa_verified: bool = False) -> 
         user_id=user.id,
         token_hash=token_hash,
         mfa_verified=mfa_verified,
+        mfa_version=user.mfa_version,
         expires_at=expires_at,
     )
     db.add(session_record)
@@ -61,6 +62,24 @@ def get_current_user_optional(
         return None
 
     user = db.query(User).filter(User.id == session_record.user_id, User.is_active == True).first()
+    if not user or session_record.mfa_version != user.mfa_version:
+        return None
+    if user.totp_enabled:
+        if not read_totp_secret(user.totp_secret) or not session_record.mfa_verified:
+            return None
+    elif user.totp_required:
+        return None
+    return user
+
+
+def get_enrollment_user(request: Request, db: Session = Depends(get_db)) -> User:
+    """Sessione password-only ammessa esclusivamente per completare il reset."""
+    record = get_session_from_cookie(request, db)
+    user = db.get(User, record.user_id) if record else None
+    if not user or not user.is_active or record.mfa_version != user.mfa_version:
+        raise HTTPException(401, "Effettuare nuovamente l'accesso.")
+    if user.totp_enabled and (not read_totp_secret(user.totp_secret) or not record.mfa_verified):
+        raise HTTPException(401, "Secondo fattore richiesto.")
     return user
 
 
@@ -102,3 +121,18 @@ def revoke_session(request: Request, db: Session) -> None:
         token_hash = hash_token(raw_token)
         db.query(AuthSession).filter(AuthSession.token_hash == token_hash).delete()
         db.commit()
+
+
+def rotate_session_token(request: Request, db: Session) -> str:
+    """Ruota il token dopo reautenticazione senza commit anticipato."""
+    record = get_session_from_cookie(request, db)
+    if not record:
+        raise HTTPException(401, "Sessione scaduta. Effettuare nuovamente l'accesso.")
+    token = generate_secure_token(32)
+    record.token_hash = hash_token(token)
+    return token
+
+
+def set_session_cookie(response, token):
+    response.set_cookie(SESSION_COOKIE_NAME, token, httponly=True, samesite="lax",
+                        secure=settings.ENVIRONMENT == "production", max_age=7 * 24 * 3600)
